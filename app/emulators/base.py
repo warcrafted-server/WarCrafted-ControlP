@@ -355,11 +355,14 @@ class BaseEmulatorDriver(ABC):
             }
 
     def scheduled_stop(self, delay_seconds: int, message: str) -> dict:
-        """Parada avisada: countdown nativo de AzerothCore (chat) + notificacion en pantalla.
+        """Parada avisada: mensaje simultaneo por chat (announce) y pantalla (notify),
+        mas el countdown nativo de AzerothCore (que solo avisa el tiempo restante).
 
-        `server shutdown <segundos> <exitcode> <motivo>` ya hace que el propio mundo avise
-        por chat a intervalos (12h/1h/5m/1m/30s/10s/1s); aqui solo se anade el aviso en
-        pantalla (notify), que AzerothCore no manda por su cuenta al programar un apagado.
+        `server shutdown <segundos> <exitcode> <motivo>` existe, pero si se le da un
+        exitcode explicito AzerothCore ignora el motivo por completo, y sin exitcode la
+        primera palabra del motivo se intenta leer como exitcode si parece un numero
+        ("10 minutos..." se comeria el "10"). Para no depender de esa ambiguedad, el
+        motivo se manda aparte por announce y el shutdown va sin motivo ni exitcode.
         """
         if self._stopping_file().exists():
             return self._force_stop()
@@ -367,12 +370,13 @@ class BaseEmulatorDriver(ABC):
         self._stopping_file().touch()
         self._stop_generation += 1
         generation = self._stop_generation
-        try:
+        for warn_cmd in (f"notify {message}", f"announce {message}"):
             try:
-                self.execute_soap_command(f"notify {message}")
+                self.execute_soap_command(warn_cmd)
             except SoapError:
-                pass  # el aviso en pantalla es un plus; si falla, seguimos con la parada igualmente
-            output = self.execute_soap_command(f"server shutdown {delay_seconds} 0 {message}")
+                pass  # el aviso es un plus; si falla, seguimos con la parada igualmente
+        try:
+            output = self.execute_soap_command(f"server shutdown {delay_seconds}")
         except SoapError as exc:
             self._stopping_file().unlink(missing_ok=True)
             raise ProcessControlError(

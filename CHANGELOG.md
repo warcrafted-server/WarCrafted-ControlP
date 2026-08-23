@@ -6,6 +6,18 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.16.1] - 2026-08-23
+
+### Corregido
+- Parada programada: el mensaje no llegaba al chat, solo la cuenta atras. Se debia a que
+  `server shutdown <segundos> <exitcode> <motivo>` ignora el motivo por completo en cuanto
+  se le da un exitcode explicito (lo haciamos para evitar que la primera palabra del
+  mensaje se leyera como exitcode). Ahora el mensaje se manda aparte por `announce`
+  (chat) ademas de `notify` (pantalla), y el shutdown va sin motivo ni exitcode.
+- Ventana de parada programada: los campos de horas/minutos/segundos ahora llevan una
+  etiqueta visible encima (antes solo tenian placeholder, que desaparecia con el valor
+  por defecto ya puesto).
+
 ## [0.16.0] - 2026-08-23
 
 ### Añadido

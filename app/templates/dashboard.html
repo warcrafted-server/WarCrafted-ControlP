@@ -92,12 +92,21 @@
       <div>
         <label class="text-xs text-gray-400">Tiempo de espera</label>
         <div class="flex gap-2 mt-1">
-          <input id="scheduled-stop-hours" type="number" min="0" value="0" placeholder="Horas"
-                 class="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2" />
-          <input id="scheduled-stop-minutes" type="number" min="0" max="59" value="10" placeholder="Minutos"
-                 class="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2" />
-          <input id="scheduled-stop-seconds" type="number" min="0" max="59" value="0" placeholder="Segundos"
-                 class="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2" />
+          <div class="w-full">
+            <label for="scheduled-stop-hours" class="text-[11px] text-gray-400">Horas</label>
+            <input id="scheduled-stop-hours" type="number" min="0" value="0"
+                   class="w-full mt-0.5 text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2" />
+          </div>
+          <div class="w-full">
+            <label for="scheduled-stop-minutes" class="text-[11px] text-gray-400">Minutos</label>
+            <input id="scheduled-stop-minutes" type="number" min="0" max="59" value="10"
+                   class="w-full mt-0.5 text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2" />
+          </div>
+          <div class="w-full">
+            <label for="scheduled-stop-seconds" class="text-[11px] text-gray-400">Segundos</label>
+            <input id="scheduled-stop-seconds" type="number" min="0" max="59" value="0"
+                   class="w-full mt-0.5 text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2" />
+          </div>
         </div>
       </div>
       <div>
