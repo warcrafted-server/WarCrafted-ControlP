@@ -80,6 +80,44 @@
            class="flex-1 min-h-0 overflow-y-auto p-4 text-xs font-mono bg-gray-950 text-gray-100 whitespace-pre-wrap"></pre>
     </div>
   </div>
+
+  <div id="scheduled-stop-modal" class="hidden fixed inset-0 z-30 bg-black/50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 w-full max-w-sm space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 id="scheduled-stop-title" class="font-medium text-sm"></h3>
+        <button id="scheduled-stop-close" type="button" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div>
+        <label class="text-xs text-gray-400">Tiempo de espera</label>
+        <div class="flex gap-2 mt-1">
+          <input id="scheduled-stop-hours" type="number" min="0" value="0" placeholder="Horas"
+                 class="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2" />
+          <input id="scheduled-stop-minutes" type="number" min="0" max="59" value="10" placeholder="Minutos"
+                 class="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2" />
+          <input id="scheduled-stop-seconds" type="number" min="0" max="59" value="0" placeholder="Segundos"
+                 class="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2" />
+        </div>
+      </div>
+      <div>
+        <label class="text-xs text-gray-400">Mensaje para los jugadores</label>
+        <textarea id="scheduled-stop-message" rows="2" placeholder="Ej: mantenimiento programado"
+                  class="w-full mt-1 text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2"></textarea>
+        <p class="text-[11px] text-gray-400 mt-1">Se manda a la vez por chat (con cuenta atras automatica) y como aviso en pantalla.</p>
+      </div>
+      <div class="flex justify-end gap-2 pt-1">
+        <button id="scheduled-stop-cancel" type="button"
+                class="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800">
+          Cancelar
+        </button>
+        <button id="scheduled-stop-confirm" type="button"
+                class="text-sm px-3 py-1.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700">
+          Programar parada
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 {% block extra_scripts %}

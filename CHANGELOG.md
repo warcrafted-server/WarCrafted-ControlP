@@ -6,6 +6,17 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.16.0] - 2026-08-23
+
+### Añadido
+- Nuevo botón "Parada programada" junto a Detener (mitad de espacio cada uno): abre una
+  ventana con tiempo de espera (horas/minutos/segundos) y mensaje, y avisa a los jugadores
+  a la vez por chat (`server shutdown`, con la cuenta atrás nativa de AzerothCore) y en
+  pantalla (`notify`).
+- Si tras un apagado normal el proceso sigue vivo pasados 15 segundos (o el tiempo de la
+  parada programada más 15s), se fuerza el cierre automáticamente sin esperar a una
+  segunda pulsación de "Forzar detencion" (que sigue funcionando igual).
+
 ## [0.15.1] - 2026-08-23
 
 ### Corregido

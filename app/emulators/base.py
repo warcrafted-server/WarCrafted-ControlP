@@ -69,6 +69,7 @@ class BaseEmulatorDriver(ABC):
         )
         PID_DIR.mkdir(parents=True, exist_ok=True)
         self._log_instance_dir().mkdir(parents=True, exist_ok=True)
+        self._stop_generation = 0
 
     def _pid_file(self) -> Path:
         return PID_DIR / f"{self.config.id}.pid"
@@ -300,14 +301,36 @@ class BaseEmulatorDriver(ABC):
         logger.warning("Detencion forzada de '%s' (PID %s): %s", self.config.name, proc.pid, detail)
         return {"success": True, "detail": detail}
 
+    def _schedule_auto_force_stop(self, generation: int, delay: float) -> None:
+        timer = threading.Timer(delay, self._auto_force_stop_if_stuck, args=(generation,))
+        timer.daemon = True
+        timer.start()
+
+    def _auto_force_stop_if_stuck(self, generation: int) -> None:
+        # Un stop() o scheduled_stop() posterior sube _stop_generation: si ya no coincide,
+        # este watchdog es de un ciclo de apagado viejo (ya resuelto o sustituido) y no debe actuar.
+        if generation != self._stop_generation or not self._stopping_file().exists():
+            return
+        logger.warning(
+            "Instancia '%s' seguia colgada tras el apagado normal; forzando cierre automaticamente.",
+            self.config.name,
+        )
+        try:
+            self._force_stop()
+        except ProcessControlError as exc:
+            logger.error("Fallo el forzado automatico de '%s': %s", self.config.name, exc)
+
     def stop(self) -> dict:
         if self._stopping_file().exists():
             return self._force_stop()
 
         self._stopping_file().touch()
+        self._stop_generation += 1
+        generation = self._stop_generation
         try:
             output = self.execute_soap_command("server shutdown 5")
             logger.info("Instancia '%s' detenida via SOAP.", self.config.name)
+            self._schedule_auto_force_stop(generation, delay=15.0)
             return {"success": True, "detail": output}
         except SoapError as exc:
             proc = self.find_process()
@@ -330,6 +353,36 @@ class BaseEmulatorDriver(ABC):
                 "success": True,
                 "detail": f"El comando SOAP fallo ({exc}); se envio senal de apagado directamente al proceso (PID {proc.pid}).",
             }
+
+    def scheduled_stop(self, delay_seconds: int, message: str) -> dict:
+        """Parada avisada: countdown nativo de AzerothCore (chat) + notificacion en pantalla.
+
+        `server shutdown <segundos> <exitcode> <motivo>` ya hace que el propio mundo avise
+        por chat a intervalos (12h/1h/5m/1m/30s/10s/1s); aqui solo se anade el aviso en
+        pantalla (notify), que AzerothCore no manda por su cuenta al programar un apagado.
+        """
+        if self._stopping_file().exists():
+            return self._force_stop()
+
+        self._stopping_file().touch()
+        self._stop_generation += 1
+        generation = self._stop_generation
+        try:
+            try:
+                self.execute_soap_command(f"notify {message}")
+            except SoapError:
+                pass  # el aviso en pantalla es un plus; si falla, seguimos con la parada igualmente
+            output = self.execute_soap_command(f"server shutdown {delay_seconds} 0 {message}")
+        except SoapError as exc:
+            self._stopping_file().unlink(missing_ok=True)
+            raise ProcessControlError(
+                f"No se pudo programar la parada via SOAP: {exc}"
+            ) from exc
+        logger.info(
+            "Parada programada de '%s' en %ss: %s", self.config.name, delay_seconds, message
+        )
+        self._schedule_auto_force_stop(generation, delay=delay_seconds + 15.0)
+        return {"success": True, "detail": output}
 
     @abstractmethod
     def get_online_players(self) -> int | None:

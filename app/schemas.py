@@ -30,6 +30,11 @@ class GithubTokenRequest(BaseModel):
     token: str
 
 
+class ScheduledStopRequest(BaseModel):
+    delay_seconds: int
+    message: str
+
+
 class CommandResult(BaseModel):
     output: str
 

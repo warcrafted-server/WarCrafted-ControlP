@@ -97,6 +97,27 @@ def stop_server(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
 
+@router.post("/{instance_id}/scheduled-stop")
+def scheduled_stop_server(
+    instance_id: str,
+    payload: schemas.ScheduledStopRequest,
+    current_user: models.User = Depends(get_current_user),
+    manager: EmulatorManager = Depends(get_manager),
+):
+    if payload.delay_seconds <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El tiempo de espera debe ser mayor que 0.")
+    message = payload.message.strip()
+    if not message:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Indica un mensaje para los jugadores.")
+    if "\n" in message or "\r" in message:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El mensaje no puede tener saltos de linea.")
+    driver = _get_driver_or_404(instance_id, manager)
+    try:
+        return driver.scheduled_stop(payload.delay_seconds, message)
+    except ProcessControlError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+
 def _get_auth_service_or_404(auth_service_id: str, manager: EmulatorManager) -> AuthServiceDriver:
     driver = manager.get_auth_service(auth_service_id)
     if not driver:

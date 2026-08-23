@@ -92,11 +92,18 @@ function serverCard(server) {
                   class="flex-1 text-xs py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 ${server.state !== 'offline' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}">
             Iniciar
           </button>
-          <button data-action="stop" data-id="${escapeHtml(server.id)}" data-name="${escapeHtml(server.name)}"
-                  ${server.state === 'offline' ? 'disabled' : ''}
-                  class="flex-1 text-xs py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 ${server.state === 'offline' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}">
-            ${server.state === 'stopping' ? 'Forzar detencion' : 'Detener'}
-          </button>
+          <div class="flex-1 flex gap-1">
+            <button data-action="stop" data-id="${escapeHtml(server.id)}" data-name="${escapeHtml(server.name)}"
+                    ${server.state === 'offline' ? 'disabled' : ''}
+                    class="flex-1 text-xs py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 ${server.state === 'offline' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}">
+              ${server.state === 'stopping' ? 'Forzar detencion' : 'Detener'}
+            </button>
+            <button data-action="scheduled-stop" data-id="${escapeHtml(server.id)}" data-name="${escapeHtml(server.name)}"
+                    ${server.state !== 'online' ? 'disabled' : ''}
+                    class="flex-1 text-xs py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 ${server.state !== 'online' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}">
+              Parada programada
+            </button>
+          </div>
         </div>
         <div class="flex gap-2">
           <a href="/console/${server.id}"
@@ -440,11 +447,88 @@ async function handleActionClick(button, urlFor, extraLabel) {
   }
 }
 
+// --- parada programada (delay + mensaje simultaneo por chat y pantalla) ---
+const scheduledStopModal = document.getElementById('scheduled-stop-modal');
+const scheduledStopTitle = document.getElementById('scheduled-stop-title');
+const scheduledStopHours = document.getElementById('scheduled-stop-hours');
+const scheduledStopMinutes = document.getElementById('scheduled-stop-minutes');
+const scheduledStopSeconds = document.getElementById('scheduled-stop-seconds');
+const scheduledStopMessage = document.getElementById('scheduled-stop-message');
+const scheduledStopConfirm = document.getElementById('scheduled-stop-confirm');
+let scheduledStopTarget = null;
+
+function openScheduledStopModal(id, name) {
+  scheduledStopTarget = { id, name };
+  scheduledStopTitle.textContent = `Parada programada — ${name}`;
+  scheduledStopHours.value = '0';
+  scheduledStopMinutes.value = '10';
+  scheduledStopSeconds.value = '0';
+  scheduledStopMessage.value = '';
+  scheduledStopConfirm.disabled = false;
+  scheduledStopConfirm.textContent = 'Programar parada';
+  scheduledStopModal.classList.remove('hidden');
+}
+
+function closeScheduledStopModal() {
+  scheduledStopTarget = null;
+  scheduledStopModal.classList.add('hidden');
+}
+
+document.getElementById('scheduled-stop-close').addEventListener('click', closeScheduledStopModal);
+document.getElementById('scheduled-stop-cancel').addEventListener('click', closeScheduledStopModal);
+scheduledStopModal.addEventListener('click', (event) => {
+  if (event.target === scheduledStopModal) closeScheduledStopModal();
+});
+
+scheduledStopConfirm.addEventListener('click', async () => {
+  if (!scheduledStopTarget) return;
+  const hours = parseInt(scheduledStopHours.value || '0', 10);
+  const minutes = parseInt(scheduledStopMinutes.value || '0', 10);
+  const seconds = parseInt(scheduledStopSeconds.value || '0', 10);
+  const delaySeconds = hours * 3600 + minutes * 60 + seconds;
+  const message = scheduledStopMessage.value.trim();
+  if (delaySeconds <= 0) {
+    showFeedback('Indica un tiempo de espera mayor que 0.', true);
+    return;
+  }
+  if (!message) {
+    showFeedback('Escribe un mensaje para avisar a los jugadores.', true);
+    return;
+  }
+  const { id, name } = scheduledStopTarget;
+  scheduledStopConfirm.disabled = true;
+  scheduledStopConfirm.textContent = 'Programando...';
+  try {
+    const response = await fetch(`/api/servers/${id}/scheduled-stop`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ delay_seconds: delaySeconds, message }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      showFeedback(`No se pudo programar la parada de "${name}": ${data.detail || 'error desconocido'}`, true);
+    } else {
+      showFeedback(`${name}: ${data.detail || 'Parada programada.'}`, data.success === false);
+      closeScheduledStopModal();
+    }
+    await refreshServers();
+  } catch (err) {
+    showFeedback(`Error de conexion al programar la parada de "${name}".`, true);
+  } finally {
+    scheduledStopConfirm.disabled = false;
+    scheduledStopConfirm.textContent = 'Programar parada';
+  }
+});
+
 gridEl.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
   if (button.dataset.action === 'log') {
     openLogModal(button.dataset.id, button.dataset.name);
+    return;
+  }
+  if (button.dataset.action === 'scheduled-stop') {
+    openScheduledStopModal(button.dataset.id, button.dataset.name);
     return;
   }
   if (button.dataset.kind === 'auth') {
