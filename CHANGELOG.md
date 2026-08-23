@@ -6,6 +6,15 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.15.1] - 2026-08-23
+
+### Corregido
+- `SoapClient.execute()` dejaba sin decodificar las referencias numericas de caracter
+  (`&#xD;`, etc.) del XML de respuesta: `xml.sax.saxutils.unescape()` solo entiende
+  `&amp;`/`&lt;`/`&gt;`, asi que un `\r` de fin de linea llegaba a la UI como el texto
+  literal `&#xD;` en vez de un salto de linea. Se sustituye por `html.unescape()`, que
+  decodifica tambien esas referencias numericas.
+
 ## [0.15.0] - 2026-08-19
 
 ### Anadido

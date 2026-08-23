@@ -1,3 +1,4 @@
+import html
 import re
 import xml.sax.saxutils as saxutils
 
@@ -44,9 +45,9 @@ class SoapClient:
             raise SoapError("Credenciales SOAP invalidas.")
         if response.status_code >= 500:
             match = re.search(r"<faultstring>(.*?)</faultstring>", response.text, re.DOTALL)
-            raise SoapError(match.group(1) if match else "Error SOAP desconocido.")
+            raise SoapError(html.unescape(match.group(1)).strip() if match else "Error SOAP desconocido.")
 
         match = re.search(r"<result>(.*?)</result>", response.text, re.DOTALL)
         if match:
-            return saxutils.unescape(match.group(1)).strip()
+            return html.unescape(match.group(1)).strip()
         return response.text.strip()
