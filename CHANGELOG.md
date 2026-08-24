@@ -6,6 +6,15 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.17.0] - 2026-08-24
+
+### Añadido
+- Cuatro funciones nuevas en `app.deps` para un plugin de mantenimiento de base de datos:
+  `get_instance_database_scopes()`/`get_instance_database_sizes()` (qué bases tiene cada
+  instancia y su tamaño en MB via `information_schema`), y `backup_instance_database()`/
+  `restore_instance_database()` (volcado/restauración con `mysqldump`/`mysql`, comprimido
+  en `.gz`; la contraseña se pasa por `--defaults-extra-file` temporal, nunca en argv).
+
 ## [0.16.2] - 2026-08-24
 
 ### Corregido

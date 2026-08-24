@@ -1,3 +1,8 @@
+import gzip
+import os
+import shutil
+import subprocess
+import tempfile
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -262,6 +267,140 @@ def search_teleports(instance_id: str, query: str, limit: int = 20) -> list[dict
                 return [{"name": row[0], "map": row[1]} for row in cursor.fetchall()]
     except Exception:
         return []
+
+
+_DB_SCOPE_FIELD = {"auth": "db_auth", "characters": "db_characters", "world": "db_world"}
+
+
+def _db_name_for_scope(driver, scope: str) -> str:
+    return getattr(driver.config, _DB_SCOPE_FIELD.get(scope, ""), "") if driver else ""
+
+
+def get_instance_database_scopes(instance_id: str) -> list[str]:
+    """Bases de datos configuradas para esta instancia: "auth", "characters", "world".
+
+    Los tres campos ya existen en toda instancia habilitada; una lista vacia solo
+    significa que la instancia no existe o esta deshabilitada.
+    """
+    driver = get_manager().get_driver(instance_id)
+    if not driver or not driver.config.enabled:
+        return []
+    return [scope for scope in _DB_SCOPE_FIELD if _db_name_for_scope(driver, scope)]
+
+
+def get_instance_database_sizes(instance_id: str) -> dict[str, dict]:
+    """Tamaño en MB y nº de tablas de cada base de datos configurada (information_schema)."""
+    driver = get_manager().get_driver(instance_id)
+    if not driver or not driver.config.enabled:
+        return {}
+    sizes = {}
+    for scope in _DB_SCOPE_FIELD:
+        db_name = _db_name_for_scope(driver, scope)
+        if not db_name:
+            continue
+        conn = _connect_db(driver, "information_schema")
+        if not conn:
+            continue
+        try:
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT COUNT(*), COALESCE(SUM(data_length + index_length), 0) "
+                        "FROM information_schema.tables WHERE table_schema = %s",
+                        (db_name,),
+                    )
+                    table_count, total_bytes = cursor.fetchone()
+                    sizes[scope] = {
+                        "database": db_name,
+                        "table_count": table_count,
+                        "size_mb": round(float(total_bytes) / (1024 * 1024), 1),
+                    }
+        except Exception:
+            continue
+    return sizes
+
+
+def _mysql_defaults_file(driver) -> str:
+    """--defaults-extra-file temporal: evita pasar la contraseña en argv (visible en `ps`)."""
+    fh = tempfile.NamedTemporaryFile(mode="w", suffix=".cnf", delete=False)
+    fh.write(
+        f"[client]\nhost={driver.config.db_host}\nport={driver.config.db_port}\n"
+        f"user={driver.config.db_user}\npassword={driver.config.db_pass}\n"
+    )
+    fh.close()
+    os.chmod(fh.name, 0o600)
+    return fh.name
+
+
+def backup_instance_database(instance_id: str, scope: str, dest_path: Path) -> None:
+    """Vuelca (mysqldump) la base `scope` de la instancia, comprimida con gzip, en dest_path.
+
+    dest_path lo decide quien llama (el plugin, dentro de su propia carpeta); aqui solo
+    se sabe volcar y comprimir, no donde se guardan ni cuantas versiones se conservan.
+    """
+    driver = get_manager().get_driver(instance_id)
+    if not driver or not driver.config.enabled:
+        raise RuntimeError("Instancia no encontrada o deshabilitada.")
+    db_name = _db_name_for_scope(driver, scope)
+    if not db_name:
+        raise RuntimeError(f"La instancia no tiene configurada la base de datos '{scope}'.")
+
+    defaults_file = _mysql_defaults_file(driver)
+    try:
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            proc = subprocess.Popen(
+                ["mysqldump", f"--defaults-extra-file={defaults_file}", "--single-transaction", "--quick", db_name],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        except FileNotFoundError as exc:
+            raise RuntimeError("No se encontro el comando 'mysqldump' en el servidor.") from exc
+        with proc:
+            with gzip.open(dest_path, "wb") as gz:
+                shutil.copyfileobj(proc.stdout, gz)
+            stderr = proc.stderr.read()
+            if proc.wait() != 0:
+                dest_path.unlink(missing_ok=True)
+                raise RuntimeError(f"mysqldump fallo ({proc.returncode}): {stderr.decode(errors='replace')[:500]}")
+    finally:
+        os.unlink(defaults_file)
+
+
+def restore_instance_database(instance_id: str, scope: str, source_path: Path) -> None:
+    """Restaura sobre la base `scope` un volcado .sql.gz creado por backup_instance_database().
+
+    Sobreescribe los datos actuales de esa base: quien llame a esto debe haber
+    confirmado la accion explicitamente con el usuario, no es reversible desde aqui.
+    """
+    driver = get_manager().get_driver(instance_id)
+    if not driver or not driver.config.enabled:
+        raise RuntimeError("Instancia no encontrada o deshabilitada.")
+    db_name = _db_name_for_scope(driver, scope)
+    if not db_name:
+        raise RuntimeError(f"La instancia no tiene configurada la base de datos '{scope}'.")
+    if not source_path.is_file():
+        raise RuntimeError("El archivo de backup no existe.")
+
+    defaults_file = _mysql_defaults_file(driver)
+    try:
+        try:
+            proc = subprocess.Popen(
+                ["mysql", f"--defaults-extra-file={defaults_file}", db_name],
+                stdin=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        except FileNotFoundError as exc:
+            raise RuntimeError("No se encontro el comando 'mysql' en el servidor.") from exc
+        with proc:
+            with gzip.open(source_path, "rb") as gz:
+                shutil.copyfileobj(gz, proc.stdin)
+            proc.stdin.close()
+            stderr = proc.stderr.read()
+            if proc.wait() != 0:
+                raise RuntimeError(f"mysql (restore) fallo ({proc.returncode}): {stderr.decode(errors='replace')[:500]}")
+    finally:
+        os.unlink(defaults_file)
 
 
 def get_current_user_ws(token: str | None, db: Session) -> models.User | None:
