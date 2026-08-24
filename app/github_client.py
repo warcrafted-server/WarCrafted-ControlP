@@ -9,6 +9,10 @@ logger = logging.getLogger(__name__)
 GITHUB_API = "https://api.github.com"
 REQUEST_TIMEOUT = 15
 
+# Sesion compartida: reutiliza la conexion TCP/TLS a api.github.com entre llamadas
+# (el catalogo de la Tienda hace una por modulo) en vez de abrir una nueva cada vez.
+_session = requests.Session()
+
 
 def headers(token: str) -> dict:
     return {
@@ -21,7 +25,7 @@ def headers(token: str) -> dict:
 def verify_repo_access(token: str, repo: str) -> None:
     """Comprueba que el token es valido y da acceso de lectura al repo indicado."""
     try:
-        response = requests.get(f"{GITHUB_API}/repos/{repo}", headers=headers(token), timeout=REQUEST_TIMEOUT)
+        response = _session.get(f"{GITHUB_API}/repos/{repo}", headers=headers(token), timeout=REQUEST_TIMEOUT)
     except requests.RequestException as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=f"No se pudo contactar con GitHub: {exc}") from exc
 
@@ -42,7 +46,7 @@ def verify_repo_access(token: str, repo: str) -> None:
 def list_repo_dir(token: str, repo: str, path: str = "") -> list[dict]:
     """Contenido de un directorio del repo (formato de la API 'contents' de GitHub)."""
     try:
-        response = requests.get(
+        response = _session.get(
             f"{GITHUB_API}/repos/{repo}/contents/{path}", headers=headers(token), timeout=REQUEST_TIMEOUT
         )
     except requests.RequestException as exc:
@@ -59,7 +63,7 @@ def list_repo_dir(token: str, repo: str, path: str = "") -> list[dict]:
 def fetch_repo_file(token: str, repo: str, path: str) -> str | None:
     """Contenido de texto de un archivo del repo, o None si no existe o no se pudo leer."""
     try:
-        response = requests.get(
+        response = _session.get(
             f"{GITHUB_API}/repos/{repo}/contents/{path}", headers=headers(token), timeout=REQUEST_TIMEOUT
         )
         if response.ok:
@@ -72,7 +76,7 @@ def fetch_repo_file(token: str, repo: str, path: str) -> str | None:
 
 def download_tarball(token: str, repo: str) -> bytes:
     try:
-        response = requests.get(f"{GITHUB_API}/repos/{repo}/tarball", headers=headers(token), timeout=60)
+        response = _session.get(f"{GITHUB_API}/repos/{repo}/tarball", headers=headers(token), timeout=60)
     except requests.RequestException as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=f"No se pudo descargar {repo}: {exc}") from exc
 

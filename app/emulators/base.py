@@ -363,10 +363,13 @@ class BaseEmulatorDriver(ABC):
         primera palabra del motivo se intenta leer como exitcode si parece un numero
         ("10 minutos..." se comeria el "10"). Para no depender de esa ambiguedad, el
         motivo se manda aparte por announce y el shutdown va sin motivo ni exitcode.
-        """
-        if self._stopping_file().exists():
-            return self._force_stop()
 
+        A diferencia de stop(), una segunda llamada mientras ya hay una parada en marcha
+        no fuerza el cierre: AzerothCore permite reprogramar el temporizador con un nuevo
+        "server shutdown", asi que aqui una segunda pulsacion sustituye tiempo y mensaje
+        (forzar sigue estando en el boton "Detener").
+        """
+        already_stopping = self._stopping_file().exists()
         self._stopping_file().touch()
         self._stop_generation += 1
         generation = self._stop_generation
@@ -378,7 +381,8 @@ class BaseEmulatorDriver(ABC):
         try:
             output = self.execute_soap_command(f"server shutdown {delay_seconds}")
         except SoapError as exc:
-            self._stopping_file().unlink(missing_ok=True)
+            if not already_stopping:
+                self._stopping_file().unlink(missing_ok=True)
             raise ProcessControlError(
                 f"No se pudo programar la parada via SOAP: {exc}"
             ) from exc

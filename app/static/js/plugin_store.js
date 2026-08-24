@@ -1,4 +1,5 @@
 const feedbackEl = document.getElementById('action-feedback');
+const catalogLoadingEl = document.getElementById('catalog-loading');
 const emptyStateEl = document.getElementById('empty-state');
 const gridEl = document.getElementById('catalog-grid');
 const tokenStatusEl = document.getElementById('token-status');
@@ -151,6 +152,8 @@ async function loadCatalog() {
     }
   } catch (err) {
     showFeedback('Error de conexion al cargar el catalogo.', true);
+  } finally {
+    catalogLoadingEl.classList.add('hidden');
   }
 }
 

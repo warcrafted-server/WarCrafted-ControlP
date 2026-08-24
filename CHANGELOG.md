@@ -6,6 +6,20 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.16.2] - 2026-08-24
+
+### Corregido
+- Parada programada: una segunda pulsacion mientras ya habia una parada en marcha
+  (por ejemplo, un temporizador todavia contando de una parada anterior) forzaba el
+  apagado inmediato en vez de reprogramar el nuevo tiempo/mensaje. Ahora reprograma el
+  temporizador de AzerothCore en su lugar; forzar sigue siendo cosa del boton "Detener".
+
+### Cambiado
+- Tienda de Plugins: el catalogo pedia el `manifest.json` de cada modulo a GitHub uno
+  detras de otro (sin reutilizar conexion ni cache), asi que tardaba mas cuantos mas
+  plugins hay publicados. Ahora se piden en paralelo y se reutiliza la conexion HTTP.
+  Ademas, se muestra un indicador de carga mientras tanto en vez de pantalla en blanco.
+
 ## [0.16.1] - 2026-08-23
 
 ### Corregido

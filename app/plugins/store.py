@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import shutil
+from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import HTTPException, status
 
@@ -36,29 +37,38 @@ def write_token(token: str) -> None:
     get_settings.cache_clear()
 
 
+def _catalog_entry(token: str, repo: str, name: str) -> dict:
+    manifest_raw = fetch_repo_file(token, repo, f"{name}/manifest.json")
+    try:
+        manifest = json.loads(manifest_raw) if manifest_raw else {}
+    except json.JSONDecodeError:
+        manifest = {}
+    return {
+        "slug": name,
+        "name": manifest.get("name", name),
+        "version": manifest.get("version", "0.0.0"),
+        "description": manifest.get("description", ""),
+        "changelog": manifest.get("changelog", ""),
+        "installed": (PLUGINS_DIR / name).is_dir(),
+    }
+
+
 def fetch_catalog(token: str, repo: str) -> list[dict]:
-    """Lista las carpetas de módulo del repo de plugins, marcando cuáles ya están instaladas."""
-    catalog = []
-    for entry in list_repo_dir(token, repo):
-        if entry.get("type") != "dir" or entry["name"].startswith((".", "_")):
-            continue
-        name = entry["name"]
-        manifest_raw = fetch_repo_file(token, repo, f"{name}/manifest.json")
-        try:
-            manifest = json.loads(manifest_raw) if manifest_raw else {}
-        except json.JSONDecodeError:
-            manifest = {}
-        catalog.append(
-            {
-                "slug": name,
-                "name": manifest.get("name", name),
-                "version": manifest.get("version", "0.0.0"),
-                "description": manifest.get("description", ""),
-                "changelog": manifest.get("changelog", ""),
-                "installed": (PLUGINS_DIR / name).is_dir(),
-            }
-        )
-    return catalog
+    """Lista las carpetas de módulo del repo de plugins, marcando cuáles ya están instaladas.
+
+    Un manifest.json por módulo, todos independientes entre si: se piden en paralelo
+    (un hilo por módulo) en vez de uno detrás de otro, para que la Tienda no tarde mas
+    cuanto mas crezca el catalogo.
+    """
+    names = [
+        entry["name"]
+        for entry in list_repo_dir(token, repo)
+        if entry.get("type") == "dir" and not entry["name"].startswith((".", "_"))
+    ]
+    if not names:
+        return []
+    with ThreadPoolExecutor(max_workers=min(len(names), 8)) as pool:
+        return list(pool.map(lambda name: _catalog_entry(token, repo, name), names))
 
 
 def install_plugin(token: str, repo: str, plugin_name: str) -> None:
