@@ -1,10 +1,12 @@
 import gzip
 import os
+import re
 import shutil
 import subprocess
 import tempfile
 import time
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 
 import pymysql
@@ -12,6 +14,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app import models
+from app.config import BASE_DIR
 from app.database import SessionLocal
 from app.emulators.manager import get_manager
 from app.security import decode_access_token
@@ -269,7 +272,12 @@ def search_teleports(instance_id: str, query: str, limit: int = 20) -> list[dict
         return []
 
 
-_DB_SCOPE_FIELD = {"auth": "db_auth", "characters": "db_characters", "world": "db_world"}
+_DB_SCOPE_FIELD = {
+    "auth": "db_auth",
+    "characters": "db_characters",
+    "world": "db_world",
+    "playerbots": "db_playerbots",  # opcional: solo si la instancia usa mod-playerbots
+}
 
 
 def _db_name_for_scope(driver, scope: str) -> str:
@@ -332,11 +340,33 @@ def _mysql_defaults_file(driver) -> str:
     return fh.name
 
 
-def backup_instance_database(instance_id: str, scope: str, dest_path: Path) -> None:
-    """Vuelca (mysqldump) la base `scope` de la instancia, comprimida con gzip, en dest_path.
+# Backups (base de datos y ejecutables del core) siempre en el mismo sitio dentro del
+# propio panel, no en la carpeta de un plugin: existen tengamos el plugin instalado o no,
+# y sobreviven a que se desinstale/reinstale. Los plugins solo deciden cuándo respaldar y
+# con qué política de retención; el core es quien sabe dónde y cómo.
+BACKUPS_DIR = BASE_DIR / "app" / "backups"
+DB_BACKUPS_DIR = BACKUPS_DIR / "db"
+CORE_BACKUPS_DIR = BACKUPS_DIR / "core"
+_SAFE_NAME_RE = re.compile(r"[^a-zA-Z0-9_-]")
 
-    dest_path lo decide quien llama (el plugin, dentro de su propia carpeta); aqui solo
-    se sabe volcar y comprimir, no donde se guardan ni cuantas versiones se conservan.
+
+def _db_backup_dir(instance_id: str, scope: str) -> Path:
+    d = DB_BACKUPS_DIR / _SAFE_NAME_RE.sub("_", instance_id) / scope
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _resolve_backup_file(instance_id: str, scope: str, filename: str) -> Path:
+    backup_dir = _db_backup_dir(instance_id, scope)
+    candidate = (backup_dir / filename).resolve()
+    if candidate.parent != backup_dir.resolve() or not candidate.is_file():
+        raise RuntimeError("El archivo de backup no existe.")
+    return candidate
+
+
+def backup_instance_database(instance_id: str, scope: str) -> Path:
+    """Vuelca (mysqldump) la base `scope` de la instancia, comprimida con gzip, bajo
+    app/backups/db/<instancia>/<scope>/ (siempre ahí, lo dispare el plugin que lo dispare).
     """
     driver = get_manager().get_driver(instance_id)
     if not driver or not driver.config.enabled:
@@ -345,9 +375,11 @@ def backup_instance_database(instance_id: str, scope: str, dest_path: Path) -> N
     if not db_name:
         raise RuntimeError(f"La instancia no tiene configurada la base de datos '{scope}'.")
 
+    # Microsegundos en el nombre: dos backups del mismo segundo (p.ej. el de seguridad
+    # justo antes de una restauracion) no deben poder pisarse el uno al otro.
+    dest_path = _db_backup_dir(instance_id, scope) / f"{scope}_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.sql.gz"
     defaults_file = _mysql_defaults_file(driver)
     try:
-        dest_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             proc = subprocess.Popen(
                 ["mysqldump", f"--defaults-extra-file={defaults_file}", "--single-transaction", "--quick", db_name],
@@ -365,10 +397,48 @@ def backup_instance_database(instance_id: str, scope: str, dest_path: Path) -> N
                 raise RuntimeError(f"mysqldump fallo ({proc.returncode}): {stderr.decode(errors='replace')[:500]}")
     finally:
         os.unlink(defaults_file)
+    return dest_path
 
 
-def restore_instance_database(instance_id: str, scope: str, source_path: Path) -> None:
-    """Restaura sobre la base `scope` un volcado .sql.gz creado por backup_instance_database().
+def list_instance_database_backups(instance_id: str, scope: str) -> list[dict]:
+    backup_dir = _db_backup_dir(instance_id, scope)
+    files = [
+        {"filename": p.name, "size_bytes": p.stat().st_size, "created_at": int(p.stat().st_mtime)}
+        for p in backup_dir.glob("*.sql.gz")
+    ]
+    files.sort(key=lambda f: f["created_at"], reverse=True)
+    return files
+
+
+def get_instance_database_backup_path(instance_id: str, scope: str, filename: str) -> Path:
+    """Ruta ya validada (sin traversal) de un backup existente, para servirlo/descargarlo."""
+    return _resolve_backup_file(instance_id, scope, filename)
+
+
+def delete_instance_database_backup(instance_id: str, scope: str, filename: str) -> None:
+    _resolve_backup_file(instance_id, scope, filename).unlink(missing_ok=True)
+
+
+def purge_instance_database_backups(instance_id: str, scope: str, retention_days: int, max_count: int) -> None:
+    """Purga backups por antigüedad y por cantidad. La politica (dias/cantidad) la decide
+    quien llama (la configuracion de un plugin); aqui solo se aplica.
+    """
+    backup_dir = _db_backup_dir(instance_id, scope)
+    cutoff = time.time() - retention_days * 86400
+    survivors = []
+    for path in backup_dir.glob("*.sql.gz"):
+        if path.stat().st_mtime < cutoff:
+            path.unlink(missing_ok=True)
+        else:
+            survivors.append(path)
+    survivors.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    for path in survivors[max_count:]:
+        path.unlink(missing_ok=True)
+
+
+def restore_instance_database(instance_id: str, scope: str, filename: str) -> None:
+    """Restaura sobre la base `scope` un volcado .sql.gz creado por backup_instance_database()
+    (busca `filename` bajo app/backups/db/<instancia>/<scope>/).
 
     Sobreescribe los datos actuales de esa base: quien llame a esto debe haber
     confirmado la accion explicitamente con el usuario, no es reversible desde aqui.
@@ -379,8 +449,7 @@ def restore_instance_database(instance_id: str, scope: str, source_path: Path) -
     db_name = _db_name_for_scope(driver, scope)
     if not db_name:
         raise RuntimeError(f"La instancia no tiene configurada la base de datos '{scope}'.")
-    if not source_path.is_file():
-        raise RuntimeError("El archivo de backup no existe.")
+    source_path = _resolve_backup_file(instance_id, scope, filename)
 
     defaults_file = _mysql_defaults_file(driver)
     try:
@@ -401,6 +470,42 @@ def restore_instance_database(instance_id: str, scope: str, source_path: Path) -
                 raise RuntimeError(f"mysql (restore) fallo ({proc.returncode}): {stderr.decode(errors='replace')[:500]}")
     finally:
         os.unlink(defaults_file)
+
+
+def _core_backups_dir(label: str = "") -> Path:
+    """`label` separa los ejecutables de distintos cores/builds (p.ej. dos reinos con
+    binarios independientes) en app/backups/core/<label>/; sin label, todo va junto.
+    """
+    return CORE_BACKUPS_DIR / _SAFE_NAME_RE.sub("_", label) if label else CORE_BACKUPS_DIR
+
+
+def backup_core_executables(source_bin_dir: Path, label: str = "") -> Path:
+    """Copia `source_bin_dir` (los binarios recien compilados, antes de que un nuevo
+    `cmake --install` los sobreescriba) a app/backups/core/[<label>/]<timestamp>/bin/.
+    """
+    if not source_bin_dir.is_dir():
+        raise RuntimeError(f"No existe el directorio de binarios: {source_bin_dir}")
+    dest = _core_backups_dir(label) / time.strftime("%Y%m%d_%H%M%S")
+    shutil.copytree(source_bin_dir, dest / "bin")
+    return dest
+
+
+def list_core_executable_backups(label: str = "") -> list[dict]:
+    base = _core_backups_dir(label)
+    if not base.is_dir():
+        return []
+    backups = [{"name": p.name, "created_at": int(p.stat().st_mtime)} for p in base.iterdir() if p.is_dir()]
+    backups.sort(key=lambda b: b["created_at"], reverse=True)
+    return backups
+
+
+def purge_core_executable_backups(max_count: int, label: str = "") -> None:
+    base = _core_backups_dir(label)
+    if not base.is_dir():
+        return
+    backups = sorted((p for p in base.glob("*") if p.is_dir()), key=lambda p: p.stat().st_mtime, reverse=True)
+    for old in backups[max_count:]:
+        shutil.rmtree(old, ignore_errors=True)
 
 
 def get_current_user_ws(token: str | None, db: Session) -> models.User | None:

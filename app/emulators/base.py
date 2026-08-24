@@ -50,6 +50,7 @@ class InstanceConfig:
     log_categories: str = ""
     db_auth: str = "acore_auth"
     db_world: str = "acore_world"
+    db_playerbots: str = ""  # vacio = instancia sin mod-playerbots, esa base no existe
 
 
 class BaseEmulatorDriver(ABC):

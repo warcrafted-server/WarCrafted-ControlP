@@ -6,6 +6,29 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.18.0] - 2026-08-24
+
+### Añadido
+- Campo opcional `db_playerbots` en `InstanceConfig` (variable de entorno
+  `INSTANCE_<N>_DB_PLAYERBOTS`), para instancias que usan mod-playerbots. Vacío
+  si la instancia no lo usa.
+
+### Cambiado
+- Backups (base de datos y ejecutables del core) centralizados siempre en
+  `app/backups/db/` y `app/backups/core/`, en vez de en la carpeta de cada plugin:
+  sobreviven a instalar/desinstalar el plugin que los usa. `backup_instance_database()`
+  y `restore_instance_database()` ya no reciben una ruta — la deciden ellas mismas.
+  Nuevas: `list_instance_database_backups()`, `delete_instance_database_backup()`,
+  `get_instance_database_backup_path()`, `purge_instance_database_backups()` (retención
+  configurable por quien llame), y el mismo paquete para ejecutables
+  (`backup_core_executables()`, `list_core_executable_backups()`,
+  `purge_core_executable_backups()`).
+
+### Corregido
+- `backup_instance_database()` nombraba el archivo con resolución de un segundo; dos
+  backups en el mismo segundo (p. ej. el de seguridad justo antes de restaurar) podían
+  pisarse entre sí. Ahora el nombre incluye microsegundos.
+
 ## [0.17.0] - 2026-08-24
 
 ### Añadido

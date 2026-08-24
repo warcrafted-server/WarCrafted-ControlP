@@ -23,6 +23,7 @@ dist/
 
 # === Datos y logs en tiempo de ejecucion ===
 data/
+app/backups/
 *.db
 *.sqlite3
 *.log
