@@ -6,6 +6,15 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.19.0] - 2026-08-24
+
+### Añadido
+- Botón "Actualizaciones disponibles" / "Núcleo actualizado" / "Sin plugin gestor" en
+  la cabecera del dashboard, junto a Tienda: refleja si el plugin `core_updater` está
+  instalado y si tiene commits pendientes de traer, sin necesidad de entrar a su
+  página. Se comprueba cada minuto contra el nuevo endpoint cacheado del propio
+  plugin (`/api/v1/plugins/core_updater/updates-summary`).
+
 ## [0.18.0] - 2026-08-24
 
 ### Añadido

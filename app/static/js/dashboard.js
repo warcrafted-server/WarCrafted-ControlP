@@ -619,9 +619,56 @@ async function checkUpdates() {
   }
 }
 
+async function checkCoreUpdates() {
+  const btn = document.getElementById('core-updates-btn');
+  const label = document.getElementById('core-updates-label');
+  const badge = document.getElementById('core-updates-badge');
+
+  function showNoPlugin() {
+    label.textContent = 'Sin plugin gestor';
+    badge.classList.add('hidden');
+    btn.removeAttribute('href');
+    btn.classList.add('opacity-60', 'cursor-default');
+  }
+
+  let installed = false;
+  try {
+    const pluginsResponse = await fetch('/api/v1/plugins/');
+    const plugins = pluginsResponse.ok ? await pluginsResponse.json() : [];
+    installed = plugins.some((plugin) => plugin.slug === 'core_updater');
+  } catch (err) {
+    return; // sin respuesta de /api/v1/plugins/: se deja el boton como estaba, se reintenta en el siguiente ciclo
+  }
+  if (!installed) {
+    showNoPlugin();
+    return;
+  }
+  try {
+    const response = await fetch('/api/v1/plugins/core_updater/updates-summary');
+    if (!response.ok) throw new Error('sin respuesta');
+    const data = await response.json();
+    const count = data.total_behind || 0;
+    btn.setAttribute('href', '/api/v1/plugins/core_updater/view');
+    btn.classList.remove('opacity-60', 'cursor-default');
+    if (count > 0) {
+      label.textContent = 'Actualizaciones disponibles';
+      badge.textContent = count;
+      badge.classList.remove('hidden');
+    } else {
+      label.textContent = 'Núcleo actualizado';
+      badge.classList.add('hidden');
+    }
+  } catch (err) {
+    // el plugin esta instalado pero el resumen fallo momentaneamente: se deja el
+    // boton como estaba, se reintenta en el siguiente ciclo
+  }
+}
+
 refreshStats();
 refreshServers();
 loadPluginsMenu();
 checkUpdates();
+checkCoreUpdates();
 setInterval(refreshStats, 5000);
 setInterval(refreshServers, 5000);
+setInterval(checkCoreUpdates, 60000);
