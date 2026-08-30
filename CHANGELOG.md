@@ -6,6 +6,14 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.19.1] - 2026-08-30
+
+### Arreglado
+- Al lanzar `worldserver` con stdin cerrado (`DEVNULL`), su hilo de consola (`CliThread`,
+  en bucle de `readline`) recibía EOF inmediato y giraba a máxima velocidad, acabando por
+  bloquear la consola para el resto de hilos. Ahora se lanza con `stdin=PIPE` sin escritor,
+  que se queda esperando en vez de dar EOF.
+
 ## [0.19.0] - 2026-08-24
 
 ### Añadido
