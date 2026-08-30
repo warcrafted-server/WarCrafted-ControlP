@@ -6,6 +6,15 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.20.0] - 2026-08-31
+
+### Añadido
+- Seis funciones nuevas en `app.deps` para que los plugins gestionen cuentas, personajes y
+  contenido de `db_world`/scripts Eluna sin salirse del contrato: `list_accounts`,
+  `list_account_characters`, `upsert_world_item_template` (escritura acotada a un rango de
+  entries reservado), `query_item_candidates`, `get_instance_lua_scripts_dir` y
+  `write_instance_lua_script`. Las usa el plugin "Fábrica de PJ".
+
 ## [0.19.1] - 2026-08-30
 
 ### Arreglado

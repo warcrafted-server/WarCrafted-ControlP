@@ -508,6 +508,157 @@ def purge_core_executable_backups(max_count: int, label: str = "") -> None:
         shutil.rmtree(old, ignore_errors=True)
 
 
+def list_accounts(instance_id: str, query: str = "", exclude_prefix: str = "") -> list[dict]:
+    """Cuentas de db_auth.account (id, username) filtrables por texto, para autocompletado."""
+    driver = get_manager().get_driver(instance_id)
+    conn = _connect_db(driver, driver.config.db_auth if driver else "")
+    if not conn:
+        return []
+    try:
+        sql = "SELECT id, username FROM account WHERE username LIKE %s"
+        params = [f"%{query}%"]
+        if exclude_prefix:
+            sql += " AND username NOT LIKE %s"
+            params.append(f"{exclude_prefix}%")
+        sql += " ORDER BY username LIMIT 50"
+        with conn:
+            with conn.cursor() as cursor:
+                cursor.execute(sql, params)
+                return [{"id": row[0], "username": row[1]} for row in cursor.fetchall()]
+    except Exception:
+        return []
+
+
+def list_account_characters(instance_id: str, account_id: int) -> list[dict]:
+    """Personajes de db_characters.characters para una cuenta (guid, name, race, class, level)."""
+    driver = get_manager().get_driver(instance_id)
+    conn = _connect_db(driver, driver.config.db_characters if driver else "")
+    if not conn:
+        return []
+    try:
+        with conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT guid, name, race, class, level FROM characters WHERE account = %s ORDER BY name",
+                    (account_id,),
+                )
+                columns = ["guid", "name", "race", "class", "level"]
+                return [dict(zip(columns, row)) for row in cursor.fetchall()]
+    except Exception:
+        return []
+
+
+_WORLD_ITEM_TEMPLATE_ENTRY_MIN = 900000
+_WORLD_ITEM_TEMPLATE_ENTRY_MAX = 909999
+_WORLD_ITEM_TEMPLATE_FIELDS = {
+    "name", "class_", "subclass", "displayid", "Quality", "InventoryType", "ItemLevel",
+    "RequiredLevel", "AllowableClass", "AllowableRace", "bonding", "maxcount", "ScriptName",
+}
+_WORLD_ITEM_TEMPLATE_COLUMN = {"class_": "class"}
+
+
+def upsert_world_item_template(instance_id: str, entry: int, fields: dict) -> None:
+    """Crea/reemplaza una fila de item_template en db_world, acotado a un rango de entries propio
+    (900000-909999) y a una whitelist de columnas — evita que un plugin ejecute SQL arbitrario
+    sobre una tabla que comparte con el resto del contenido del servidor.
+    """
+    if not (_WORLD_ITEM_TEMPLATE_ENTRY_MIN <= entry <= _WORLD_ITEM_TEMPLATE_ENTRY_MAX):
+        raise ValueError(
+            f"El entry {entry} esta fuera del rango reservado "
+            f"({_WORLD_ITEM_TEMPLATE_ENTRY_MIN}-{_WORLD_ITEM_TEMPLATE_ENTRY_MAX})."
+        )
+    unknown = set(fields) - _WORLD_ITEM_TEMPLATE_FIELDS
+    if unknown:
+        raise ValueError(f"Campos no permitidos para item_template: {sorted(unknown)}")
+
+    driver = get_manager().get_driver(instance_id)
+    if not driver or not driver.config.enabled:
+        raise RuntimeError("Instancia no encontrada o deshabilitada.")
+    db_name = driver.config.db_world
+    conn = _connect_db(driver, db_name)
+    if not conn:
+        raise RuntimeError(f"No se pudo conectar a la base de datos '{db_name}'.")
+
+    columns = [_WORLD_ITEM_TEMPLATE_COLUMN.get(key, key) for key in fields]
+    placeholders = ", ".join(["%s"] * (len(fields) + 1))
+    sql = f"REPLACE INTO item_template (entry, {', '.join(columns)}) VALUES ({placeholders})"
+    try:
+        with conn:
+            with conn.cursor() as cursor:
+                cursor.execute(sql, [entry, *fields.values()])
+    except Exception as exc:
+        raise RuntimeError(f"No se pudo escribir item_template: {exc}") from exc
+
+
+def query_item_candidates(
+    instance_id: str,
+    class_mask: int,
+    min_level: int,
+    max_level: int,
+    quality: int,
+    item_class: int,
+    subclass: int | None,
+    inventory_type: int,
+    limit: int = 5,
+) -> list[dict]:
+    """Candidatos de item_template para un slot de equipo, ordenados por ItemLevel descendente.
+
+    Sin ninguna nocion de clase/rol de WoW (que subclase le toca a cada clase, que prioriza
+    cada rol): es responsabilidad de quien llama pasar ya los valores correctos. Generica a
+    proposito, para que cualquier plugin que necesite item_template con otro criterio la reutilice.
+    """
+    driver = get_manager().get_driver(instance_id)
+    conn = _connect_db(driver, driver.config.db_world if driver else "")
+    if not conn:
+        return []
+    try:
+        sql = (
+            "SELECT entry, name, ItemLevel, InventoryType, subclass FROM item_template "
+            "WHERE (AllowableClass = -1 OR (AllowableClass & %s) != 0) "
+            "AND RequiredLevel BETWEEN %s AND %s AND Quality = %s "
+            "AND class = %s AND InventoryType = %s"
+        )
+        params = [class_mask, min_level, max_level, quality, item_class, inventory_type]
+        if subclass is not None:
+            sql += " AND subclass = %s"
+            params.append(subclass)
+        sql += " ORDER BY ItemLevel DESC LIMIT %s"
+        params.append(limit)
+        with conn:
+            with conn.cursor() as cursor:
+                cursor.execute(sql, params)
+                columns = ["entry", "name", "item_level", "inventory_type", "subclass"]
+                return [dict(zip(columns, row)) for row in cursor.fetchall()]
+    except Exception:
+        return []
+
+
+def get_instance_lua_scripts_dir(instance_id: str) -> Path | None:
+    """Directorio lua_scripts/ de una instancia habilitada (hermano de bin/ y etc/), creandolo si
+    hace falta — a diferencia de get_instance_etc_dir(), puede ser la primera vez que se usa
+    mod-eluna en esa instancia y la carpeta aun no exista.
+    """
+    driver = get_manager().get_driver(instance_id)
+    if not driver or not driver.config.enabled or not driver.config.workdir:
+        return None
+    scripts_dir = Path(driver.config.workdir).parent / "lua_scripts"
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+    return scripts_dir
+
+
+def write_instance_lua_script(instance_id: str, filename: str, content: str) -> Path:
+    """Escribe (o sobreescribe) un script en lua_scripts/ de la instancia y devuelve su ruta."""
+    scripts_dir = get_instance_lua_scripts_dir(instance_id)
+    if not scripts_dir:
+        raise RuntimeError("Instancia no encontrada o deshabilitada.")
+    safe_name = _SAFE_NAME_RE.sub("_", Path(filename).stem) + ".lua"
+    try:
+        (scripts_dir / safe_name).write_text(content, encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"No se pudo escribir el script Lua: {exc}") from exc
+    return scripts_dir / safe_name
+
+
 def get_current_user_ws(token: str | None, db: Session) -> models.User | None:
     if not token:
         return None
