@@ -1,5 +1,6 @@
 import logging
 import re
+import resource
 import shlex
 import subprocess
 import threading
@@ -19,6 +20,10 @@ logger = logging.getLogger(__name__)
 PID_DIR = DATA_DIR / "pids"
 
 _UPDATE_DIFF_RE = re.compile(r"Update time diff:\s*(\d+)ms")
+
+
+def _allow_core_dumps() -> None:
+    resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
 
 class ProcessControlError(Exception):
@@ -239,12 +244,16 @@ class BaseEmulatorDriver(ABC):
             process = subprocess.Popen(
                 args,
                 cwd=str(workdir) if workdir else None,
-                stdin=subprocess.DEVNULL,
+                # PIPE, no DEVNULL: si stdin da EOF inmediato, el CliThread de worldserver
+                # (readline en bucle) gira a maxima velocidad y termina bloqueando la
+                # consola para el resto de hilos. Con PIPE sin escritor se queda esperando.
+                stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
                 start_new_session=True,
+                preexec_fn=_allow_core_dumps,
             )
         except OSError as exc:
             log_fh.close()
