@@ -553,6 +553,8 @@ _WORLD_ITEM_TEMPLATE_ENTRY_MAX = 909999
 _WORLD_ITEM_TEMPLATE_FIELDS = {
     "name", "class_", "subclass", "displayid", "Quality", "InventoryType", "ItemLevel",
     "RequiredLevel", "AllowableClass", "AllowableRace", "bonding", "maxcount", "ScriptName",
+    "spellid_1", "spelltrigger_1", "spellcharges_1", "spellcooldown_1",
+    "spellcategory_1", "spellcategorycooldown_1",
 }
 _WORLD_ITEM_TEMPLATE_COLUMN = {"class_": "class"}
 

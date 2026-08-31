@@ -6,6 +6,14 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.20.2] - 2026-08-31
+
+### Añadido
+- `upsert_world_item_template` acepta ahora `spellid_1`/`spelltrigger_1`/`spellcharges_1`/
+  `spellcooldown_1`/`spellcategory_1`/`spellcategorycooldown_1` en su whitelist de columnas —
+  sin un conjuro asociado, el cliente de WoW no reconoce un ítem como "usable" al hacer clic
+  derecho. Lo necesita el plugin "Fábrica de PJ" para que sus ítems de correo funcionen.
+
 ## [0.20.1] - 2026-08-31
 
 ### Arreglado
