@@ -6,6 +6,13 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.20.4] - 2026-08-31
+
+### Corregido
+- `.env.example` no documentaba `INSTANCE_2_ACORE_LOGS_DIR` ni `INSTANCE_2_LOG_CATEGORIES`
+  (ya soportadas por `app.emulators.manager`), y el ejemplo de `INSTANCE_2_DB_WORLD` apuntaba
+  a `acore_world_playerbots` en vez de `acore_world_test`.
+
 ## [0.20.3] - 2026-08-31
 
 ### Arreglado
