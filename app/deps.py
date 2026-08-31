@@ -482,11 +482,15 @@ def _core_backups_dir(label: str = "") -> Path:
 def backup_core_executables(source_bin_dir: Path, label: str = "") -> Path:
     """Copia `source_bin_dir` (los binarios recien compilados, antes de que un nuevo
     `cmake --install` los sobreescriba) a app/backups/core/[<label>/]<timestamp>/bin/.
+
+    Ignora volcados de crash (`core.<pid>`, mismo WORKDIR que el ejecutable): sin este
+    filtro, un worldserver/authserver que crashea deja el archivo ahi y cada backup
+    posterior lo re-copia integro, inflando el backup en varios GB por volcado.
     """
     if not source_bin_dir.is_dir():
         raise RuntimeError(f"No existe el directorio de binarios: {source_bin_dir}")
     dest = _core_backups_dir(label) / time.strftime("%Y%m%d_%H%M%S")
-    shutil.copytree(source_bin_dir, dest / "bin")
+    shutil.copytree(source_bin_dir, dest / "bin", ignore=shutil.ignore_patterns("core.[0-9]*"))
     return dest
 
 

@@ -6,6 +6,13 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.20.3] - 2026-08-31
+
+### Arreglado
+- `backup_core_executables` copiaba también los volcados de crash (`core.<pid>`) que un
+  worldserver/authserver deja en su propio `bin/` al caerse, inflando cada backup posterior
+  en varios GB por volcado acumulado.
+
 ## [0.20.2] - 2026-08-31
 
 ### Añadido
