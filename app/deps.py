@@ -629,7 +629,7 @@ def query_item_candidates(
         if subclass is not None:
             sql += " AND subclass = %s"
             params.append(subclass)
-        sql += " ORDER BY ItemLevel DESC LIMIT %s"
+        sql += " ORDER BY ItemLevel DESC, entry ASC LIMIT %s"
         params.append(limit)
         with conn:
             with conn.cursor() as cursor:

@@ -6,6 +6,14 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.20.5] - 2026-08-31
+
+### Corregido
+- `query_item_candidates` ordenaba solo por `ItemLevel DESC`, sin desempate: con varios objetos
+  empatados en nivel, MySQL no garantiza el mismo orden al cambiar el `LIMIT`, así que un plugin
+  que pida "el primero" y luego "el segundo" (p. ej. dos anillos) podía recibir el mismo objeto
+  dos veces. Ahora desempata por `entry ASC`.
+
 ## [0.20.4] - 2026-08-31
 
 ### Corregido
