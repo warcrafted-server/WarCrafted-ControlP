@@ -6,6 +6,13 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.20.1] - 2026-08-31
+
+### Arreglado
+- `upsert_world_item_template` no confirmaba la transacción (`autocommit` está desactivado por
+  defecto en las conexiones de `_connect_db`), así que la fila nunca llegaba a `item_template` y
+  cualquier comando SOAP que la usara fallaba con "Invalid item id".
+
 ## [0.20.0] - 2026-08-31
 
 ### Añadido

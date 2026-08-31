@@ -586,6 +586,7 @@ def upsert_world_item_template(instance_id: str, entry: int, fields: dict) -> No
         with conn:
             with conn.cursor() as cursor:
                 cursor.execute(sql, [entry, *fields.values()])
+            conn.commit()
     except Exception as exc:
         raise RuntimeError(f"No se pudo escribir item_template: {exc}") from exc
 
