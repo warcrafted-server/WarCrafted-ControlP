@@ -6,6 +6,13 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.21.3] - 2026-09-10
+
+### Añadido
+- Boton de reiniciar el panel en la cabecera del dashboard, junto al resto de acciones de
+  cabecera. Reutiliza `POST /api/system/restart`, ya pensado para volver a lanzarse via
+  systemd o el bucle de `run.sh`.
+
 ## [0.21.2] - 2026-09-10
 
 ### Añadido

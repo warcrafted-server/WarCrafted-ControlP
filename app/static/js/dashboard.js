@@ -543,6 +543,18 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
   window.location.href = '/login';
 });
 
+document.getElementById('restart-panel-btn').addEventListener('click', async () => {
+  if (!window.confirm('¿Reiniciar el panel? Se cerrará la sesión de todos los usuarios durante unos segundos.')) {
+    return;
+  }
+  showFeedback('Reiniciando el panel...', false);
+  try {
+    await fetch('/api/system/restart', { method: 'POST' });
+  } catch (err) {
+    // El panel se reinicia y corta la conexion; un fallo de fetch aqui es el resultado esperado.
+  }
+});
+
 const pluginsMenuBtn = document.getElementById('plugins-menu-btn');
 const pluginsMenu = document.getElementById('plugins-menu');
 
