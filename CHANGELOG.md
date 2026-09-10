@@ -6,6 +6,13 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.21.2] - 2026-09-10
+
+### Añadido
+- `LOGS_MAX_TOTAL_MB` limita el peso acumulado del historico de logs por categoria e instancia,
+  ademas de `LOGS_RETENTION_DAYS`/`LOGS_MAX_RUNS`: un solo arranque puede pesar cientos de MB y
+  saltarse ambos limites si nadie mira el disco. Por defecto 500 MB; 0 desactiva el limite.
+
 ## [0.21.1] - 2026-09-10
 
 ### Corregido

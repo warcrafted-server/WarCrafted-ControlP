@@ -71,6 +71,7 @@ class BaseEmulatorDriver(ABC):
         self._logs_root = Path(settings.instances_logs_dir)
         self._retention_days = settings.logs_retention_days
         self._max_runs = settings.logs_max_runs
+        self._max_total_mb = settings.logs_max_total_mb
         self.soap = SoapClient(
             host=config.soap_host,
             port=config.soap_port,
@@ -314,7 +315,7 @@ class BaseEmulatorDriver(ABC):
             raise ProcessControlError(message)
 
         self._write_pid(process.pid)
-        log_manager.purge_old_logs(instance_dir, self._retention_days, self._max_runs)
+        log_manager.purge_old_logs(instance_dir, self._retention_days, self._max_runs, self._max_total_mb)
         logger.info("Instancia '%s' iniciada con PID %s", self.config.name, process.pid)
         return {"success": True, "detail": "Servidor iniciado correctamente.", "pid": process.pid}
 

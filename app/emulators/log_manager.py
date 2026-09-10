@@ -83,7 +83,7 @@ def archive_native_logs(instance_dir: Path, acore_logs_dir: Path, categories: li
             continue
 
 
-def purge_old_logs(instance_dir: Path, retention_days: int, max_runs: int) -> None:
+def purge_old_logs(instance_dir: Path, retention_days: int, max_runs: int, max_total_mb: int = 0) -> None:
     if not instance_dir.is_dir():
         return
     by_category: dict[str, list[Path]] = {}
@@ -94,6 +94,7 @@ def purge_old_logs(instance_dir: Path, retention_days: int, max_runs: int) -> No
         by_category.setdefault(parsed[1], []).append(path)
 
     cutoff = time.time() - retention_days * 86400
+    max_total_bytes = max_total_mb * 1_000_000
     for files in by_category.values():
         files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
         survivors = []
@@ -104,6 +105,16 @@ def purge_old_logs(instance_dir: Path, retention_days: int, max_runs: int) -> No
                 survivors.append(path)
         for path in survivors[max_runs:]:
             path.unlink(missing_ok=True)
+        survivors = survivors[:max_runs]
+
+        # Ademas de dias y numero de runs, se acota el peso total por categoria:
+        # un unico run puede pesar cientos de MB y saltarse ambos limites.
+        if max_total_bytes > 0:
+            total = 0
+            for path in survivors:
+                total += path.stat().st_size
+                if total > max_total_bytes:
+                    path.unlink(missing_ok=True)
 
 
 def list_runs(instance_dir: Path) -> list[dict]:

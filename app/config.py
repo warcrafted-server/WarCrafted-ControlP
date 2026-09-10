@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     instances_logs_dir: str = "./logs/instances"
     logs_retention_days: int = 7
     logs_max_runs: int = 15
+    logs_max_total_mb: int = 500
 
     shutdown_stuck_timeout: int = 180
 
