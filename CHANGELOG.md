@@ -6,6 +6,21 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.21.1] - 2026-09-10
+
+### Corregido
+- El panel podia seguir al envoltorio en vez de al emulador. Arrancando el `worldserver` desde
+  tmux (`sh -c cd bin && ./worldserver`), esa `sh` tiene el PID mas bajo y ganaba el escaneo, asi
+  que la tarjeta mostraba su RAM (1,8 MB) y, peor, las senales de parada le llegaban a ella: el
+  emulador se quedaba vivo y huerfano. Ahora, entre varios candidatos, siempre gana el proceso
+  que es el binario; un envoltorio solo vale si el binario no aparece por ningun lado.
+- Los ficheros `.ready`/`.stopping` sobreviven al proceso y al reinicio de la maquina, asi que una
+  instancia recien arrancada podia salir como Deteniendo (o como lista antes de cargar el mundo)
+  por un marcador de un run anterior. Ahora se descartan los anteriores al arranque del proceso.
+- Una instancia que no habia arrancado el panel se quedaba en Arrancando para siempre, porque la
+  senal de "reino accesible" solo se buscaba en el log de consola, que en ese caso no existe. Se
+  busca tambien en el `Server.log` nativo, igual que ya se hacia con el apagado.
+
 ## [0.21.0] - 2026-09-10
 
 ### Anadido

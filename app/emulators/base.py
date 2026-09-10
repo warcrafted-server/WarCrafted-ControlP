@@ -150,11 +150,41 @@ class BaseEmulatorDriver(ABC):
     def find_process(self) -> psutil.Process | None:
         return process_control.find_process(self._pid_file(), self.config.world_process, self.config.workdir)
 
+    def _drop_stale_markers(self, proc: psutil.Process) -> None:
+        """Tira los ficheros .ready/.stopping de un run anterior.
+
+        Sobreviven al proceso y al reinicio de la maquina, asi que sin esto un
+        worldserver recien arrancado sale como "Deteniendo" (o como listo antes de
+        cargar el mundo) por un marcador que no tiene nada que ver con el.
+        """
+        try:
+            started = proc.create_time()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            return
+        for marker in (self._ready_file(), self._stopping_file()):
+            try:
+                if marker.stat().st_mtime < started:
+                    marker.unlink(missing_ok=True)
+            except OSError:
+                continue
+
+    def _status_log_path(self) -> Path | None:
+        """Log donde leer por donde va la instancia (arranque terminado, apagado en marcha).
+
+        El Server.log nativo primero: existe aunque el worldserver no lo haya
+        arrancado el panel (tmux, systemd...), que es justo cuando no hay log de consola.
+        """
+        if self.config.acore_logs_dir:
+            native = Path(self.config.acore_logs_dir) / log_manager.NATIVE_CATEGORIES["server"]
+            if native.is_file():
+                return native
+        return self.current_console_log()
+
     def _is_ready(self) -> bool:
         """Ya se puede entrar al reino (mundo, red y SOAP cargados), no solo que el proceso exista."""
         if self._ready_file().exists():
             return True
-        log_path = self.current_console_log()
+        log_path = self._status_log_path()
         if log_path and log_manager.contains_ready_marker(log_path):
             self._ready_file().touch()
             return True
@@ -180,6 +210,7 @@ class BaseEmulatorDriver(ABC):
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             return {"state": "offline", "pid": None, "cpu_percent": None, "cpu_percent_host": None, "memory_mb": None}
 
+        self._drop_stale_markers(proc)
         if self._stopping_file().exists():
             state = "stopping"
         elif self._is_ready():
@@ -334,18 +365,6 @@ class BaseEmulatorDriver(ABC):
         except ProcessControlError as exc:
             logger.error("Fallo el forzado automatico de '%s': %s", self.config.name, exc)
 
-    def _shutdown_log_path(self) -> Path | None:
-        """Log donde mirar si hay un apagado en marcha.
-
-        El Server.log nativo primero: existe aunque el worldserver no lo haya
-        arrancado el panel (tmux, systemd...), que es justo cuando no hay log de consola.
-        """
-        if self.config.acore_logs_dir:
-            native = Path(self.config.acore_logs_dir) / log_manager.NATIVE_CATEGORIES["server"]
-            if native.is_file():
-                return native
-        return self.current_console_log()
-
     def force_stop_if_shutdown_stuck(self, stale_after: float) -> str | None:
         """Mata la instancia si un apagado ya empezado se queda sin avanzar.
 
@@ -362,7 +381,7 @@ class BaseEmulatorDriver(ABC):
         proc = self.find_process()
         if not proc:
             return None
-        log_path = self._shutdown_log_path()
+        log_path = self._status_log_path()
         if log_path is None:
             return None
         shutting_down, db_closed = log_manager.read_shutdown_state(log_path)
