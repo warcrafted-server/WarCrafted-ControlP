@@ -50,6 +50,18 @@ Cada tarjeta incluye cuatro acciones:
 | **Consola** | Abre la consola GM interactiva de esa instancia. |
 | **Logs** | Abre el historico de logs de esa instancia (ver siguiente seccion). |
 
+No hace falta estar delante para rematar un apagado colgado: el panel vigila en segundo
+plano cualquier apagado en curso, aunque no lo haya pedido el, y cuando deja de avanzar lo
+fuerza el solo (SIGTERM y, si no responde, SIGKILL). Asi un `server shutdown` lanzado por
+SOAP desde un script de reinicio nocturno tampoco se queda a medias.
+
+Cuanto espera antes de rematarlo depende de por donde vaya el cierre. Mientras el
+`worldserver` esta vaciando consultas pendientes en la base de datos le da 3 minutos sin
+escribir nada en el log, porque ahi si que puede tardar de verdad y cortarlo perderia
+partidas. En cuanto el log dice que ya ha cerrado las bases, 30 segundos: a esas alturas
+solo le queda salir. El margen largo se ajusta con `SHUTDOWN_STUCK_TIMEOUT` en el `.env`,
+y con `0` se desactiva la vigilancia.
+
 ### Tarjetas de authserver
 
 Junto a las tarjetas de instancia, en el mismo grid, hay una tarjeta por cada authserver

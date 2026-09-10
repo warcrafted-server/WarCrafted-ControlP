@@ -197,6 +197,36 @@ def contains_ready_marker(path: Path) -> bool:
     return False
 
 
+# Primera linea del cierre en AzerothCore (Main.cpp): a partir de aqui el proceso
+# ya no atiende a nadie, solo le queda cerrar los pools de base de datos y salir.
+HALT_MARKER = "Halting process..."
+
+# Solo cuenta si el marcador esta al final: mas atras significa que ese apagado ya
+# termino y lo que se ve despues es el arranque siguiente.
+HALT_TAIL_BYTES = 32_768
+
+# Cada pool cierra en dos lineas: "Closing down DatabasePool 'X'. Waiting for N
+# queries to finish..." y esta al acabar.
+_DB_CLOSED_RE = re.compile(r"All connections on DatabasePool '.*' closed\.")
+
+
+def read_shutdown_state(path: Path, tail_bytes: int = HALT_TAIL_BYTES) -> tuple[bool, bool]:
+    """Del final del log: (apagado en curso, bases de datos ya cerradas).
+
+    Lo segundo dice si se puede matar el proceso sin perder nada: con los pools
+    cerrados no queda ninguna partida por guardar. Se mira la ultima linea porque
+    entre pool y pool no hay pausa; si la ultima es esa, ninguno esta a medias.
+    """
+    try:
+        content, _, _ = read_preview(path, max_bytes=tail_bytes)
+    except OSError:
+        return False, False
+    if HALT_MARKER not in content:
+        return False, False
+    lines = [line for line in content.splitlines() if line.strip()]
+    return True, bool(lines) and _DB_CLOSED_RE.search(lines[-1]) is not None
+
+
 def tail_file(path: Path, lines: int = 20) -> str:
     if not path.exists():
         return ""

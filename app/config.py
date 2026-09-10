@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     logs_retention_days: int = 7
     logs_max_runs: int = 15
 
+    shutdown_stuck_timeout: int = 180
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

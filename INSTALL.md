@@ -72,6 +72,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Duracion de la sesion | `120` |
 | `COOKIE_SECURE` | Marca la cookie de sesion como `Secure` (requiere HTTPS) | `false` |
 | `APP_DB_URL` | Cadena de conexion de la base de datos interna del panel | `sqlite:///./data/app.db` |
+| `SHUTDOWN_STUCK_TIMEOUT` | Segundos que un apagado en curso puede pasar sin escribir nada en el log antes de que el panel remate el proceso. Con las bases de datos ya cerradas el margen baja a 30 segundos fijos (`0` desactiva la vigilancia) | `180` |
 
 ### Instancias de emulador
 

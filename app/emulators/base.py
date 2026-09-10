@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 
 PID_DIR = DATA_DIR / "pids"
 
+# Segundos de cortesia cuando el apagado ya cerro las bases de datos: es la parte del
+# cierre que no deberia tardar nada, asi que no hace falta el margen largo del .env.
+DB_CLOSED_GRACE_SECONDS = 30
+
 _UPDATE_DIFF_RE = re.compile(r"Update time diff:\s*(\d+)ms")
 
 
@@ -329,6 +333,64 @@ class BaseEmulatorDriver(ABC):
             self._force_stop()
         except ProcessControlError as exc:
             logger.error("Fallo el forzado automatico de '%s': %s", self.config.name, exc)
+
+    def _shutdown_log_path(self) -> Path | None:
+        """Log donde mirar si hay un apagado en marcha.
+
+        El Server.log nativo primero: existe aunque el worldserver no lo haya
+        arrancado el panel (tmux, systemd...), que es justo cuando no hay log de consola.
+        """
+        if self.config.acore_logs_dir:
+            native = Path(self.config.acore_logs_dir) / log_manager.NATIVE_CATEGORIES["server"]
+            if native.is_file():
+                return native
+        return self.current_console_log()
+
+    def force_stop_if_shutdown_stuck(self, stale_after: float) -> str | None:
+        """Mata la instancia si un apagado ya empezado se queda sin avanzar.
+
+        AzerothCore puede colgarse despues de cerrar limpiamente sus pools: los hilos no
+        acaban de unirse y el proceso no sale nunca. Ni SIGTERM ni repetir el shutdown lo
+        mueven, solo SIGKILL. Se detecta por el log, porque cada paso del cierre escribe
+        una linea: log parado = apagado parado.
+
+        Sirve venga de donde venga el apagado (panel, consola GM, un script por SOAP);
+        el watchdog de `stop()` solo cubre los que salen del propio panel.
+
+        Devuelve el detalle de la parada, o None si no habia nada que forzar.
+        """
+        proc = self.find_process()
+        if not proc:
+            return None
+        log_path = self._shutdown_log_path()
+        if log_path is None:
+            return None
+        shutting_down, db_closed = log_manager.read_shutdown_state(log_path)
+        if not shutting_down:
+            return None
+
+        # El apagado no lo ha pedido el panel, asi que marcalo para que el dashboard
+        # no siga mostrando la instancia como si estuviera en linea.
+        self._stopping_file().touch()
+        try:
+            idle_seconds = time.time() - log_path.stat().st_mtime
+        except OSError:
+            return None
+
+        # El margen largo es para no cortar un cierre lento pero vivo: vaciar los pools
+        # puede tardar minutos con miles de consultas encoladas. Cerrados ya los pools no
+        # queda nada que guardar, solo salir, y eso o es inmediato o no pasa nunca.
+        deadline = min(DB_CLOSED_GRACE_SECONDS, stale_after) if db_closed else stale_after
+        if idle_seconds < deadline:
+            return None
+
+        logger.warning(
+            "El apagado de '%s' (PID %s) lleva %ss sin avanzar; forzando el cierre.",
+            self.config.name,
+            proc.pid,
+            int(idle_seconds),
+        )
+        return self._force_stop()["detail"]
 
     def stop(self) -> dict:
         if self._stopping_file().exists():

@@ -6,6 +6,24 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.21.0] - 2026-09-10
+
+### Anadido
+- El panel vigila en segundo plano los apagados que se quedan colgados y los remata, venga
+  de donde venga la orden de apagar. Hasta ahora solo cubria los apagados pedidos desde el
+  propio panel; uno lanzado por SOAP desde un script de reinicio programado podia dejar el
+  `worldserver` trabado en RAM indefinidamente (AzerothCore cierra sus pools de base de datos
+  y despues no termina de unir los hilos), con el reino caido y sin nadie delante para pulsar
+  Forzar detencion. Se detecta por el log de la instancia: tras `Halting process...` cada paso
+  del cierre escribe una linea, asi que un log parado significa un apagado parado. El margen
+  se cuenta desde la ultima linea escrita, no desde que se pidio el apagado, para no cortar un
+  cierre lento pero vivo: son 3 minutos mientras vacia consultas pendientes (que con miles
+  encoladas puede tardar de verdad) y 30 segundos en cuanto el log dice que ya cerro las bases,
+  porque entonces solo le queda salir y no hay nada que perder. El margen largo es ajustable
+  con `SHUTDOWN_STUCK_TIMEOUT` en el `.env` (`0` lo desactiva).
+- Las instancias que se estan apagando aparecen como **Deteniendo** en el dashboard aunque el
+  apagado no lo haya pedido el panel; antes seguian mostrandose En linea.
+
 ## [0.20.5] - 2026-08-31
 
 ### Corregido

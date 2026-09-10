@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -20,6 +21,7 @@ from app.config import BASE_DIR, get_settings
 from app.core_update import current_version
 from app.database import init_db
 from app.deps import get_db
+from app.emulators import shutdown_watchdog
 from app.plugins.loader import load_plugins
 from app.security import decode_access_token
 
@@ -29,7 +31,11 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    yield
+    watchdog = asyncio.create_task(shutdown_watchdog.watch())
+    try:
+        yield
+    finally:
+        watchdog.cancel()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
