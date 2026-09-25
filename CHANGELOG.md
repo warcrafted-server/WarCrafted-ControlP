@@ -6,6 +6,14 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.21.4] - 2026-09-25
+
+### Añadido
+- `search_items` devuelve el nombre en español del objeto cuando existe traduccion en
+  `item_template_locale`, y `get_item_by_entry` permite buscar un objeto por su entry exacto.
+  `list_online_players` incluye ahora la hermandad de cada personaje y si es un playerbot
+  aleatorio (por el prefijo de cuenta configurado en `playerbots.conf`).
+
 ## [0.21.3] - 2026-09-10
 
 ### Añadido
