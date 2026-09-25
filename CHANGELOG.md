@@ -6,6 +6,15 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.21.5] - 2026-09-25
+
+### Corregido
+- El prefijo de cuenta de playerbots aleatorios se leia de `playerbots.conf` con las comillas del
+  fichero incluidas, asi que `is_bot` nunca coincidia con ninguna cuenta real.
+
+### Añadido
+- `list_online_players` acepta `online_only=False` para incluir tambien personajes desconectados.
+
 ## [0.21.4] - 2026-09-25
 
 ### Añadido

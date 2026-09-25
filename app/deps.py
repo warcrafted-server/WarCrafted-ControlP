@@ -212,7 +212,7 @@ def _random_bot_account_prefix(instance_id: str) -> str:
                     line = line.strip()
                     if line.startswith("AiPlayerbot.RandomBotAccountPrefix"):
                         _, _, value = line.partition("=")
-                        value = value.strip()
+                        value = value.strip().strip('"')
                         if value:
                             return value
             except OSError:
@@ -220,8 +220,8 @@ def _random_bot_account_prefix(instance_id: str) -> str:
     return "rndbot"
 
 
-def list_online_players(instance_id: str) -> list[dict]:
-    """Nombre/raza/clase/nivel/mapa/guid/hermandad/bot de los personajes conectados.
+def list_online_players(instance_id: str, online_only: bool = True) -> list[dict]:
+    """Nombre/raza/clase/nivel/mapa/guid/hermandad/bot/conectado de los personajes.
 
     Sin ping/latencia: AzerothCore no lo guarda en base de datos, vive solo en
     memoria del worldserver (WorldSession::m_latency) mientras dura la sesion.
@@ -236,6 +236,7 @@ def list_online_players(instance_id: str) -> list[dict]:
         return []
     db_auth = driver.config.db_auth if driver else ""
     prefix = _random_bot_account_prefix(instance_id)
+    where_online = "WHERE c.online = 1" if online_only else ""
     try:
         with conn:
             with conn.cursor() as cursor:
@@ -243,29 +244,29 @@ def list_online_players(instance_id: str) -> list[dict]:
                     cursor.execute(
                         f"""
                         SELECT c.guid, c.name, c.race, c.class, c.level, c.map,
-                               g.name, a.username LIKE %s
+                               g.name, a.username LIKE %s, c.online
                         FROM characters c
                         LEFT JOIN guild_member gm ON gm.guid = c.guid
                         LEFT JOIN guild g ON g.guildid = gm.guildid
                         LEFT JOIN `{db_auth}`.account a ON a.id = c.account
-                        WHERE c.online = 1
+                        {where_online}
                         """,
                         (f"{prefix}%",),
                     )
                 else:
                     cursor.execute(
-                        """
+                        f"""
                         SELECT c.guid, c.name, c.race, c.class, c.level, c.map,
-                               g.name, 0
+                               g.name, 0, c.online
                         FROM characters c
                         LEFT JOIN guild_member gm ON gm.guid = c.guid
                         LEFT JOIN guild g ON g.guildid = gm.guildid
-                        WHERE c.online = 1
+                        {where_online}
                         """
                     )
-                columns = ["guid", "name", "race", "class", "level", "map", "guild", "is_bot"]
+                columns = ["guid", "name", "race", "class", "level", "map", "guild", "is_bot", "online"]
                 return [
-                    dict(zip(columns, (*row[:7], bool(row[7]))))
+                    dict(zip(columns, (*row[:7], bool(row[7]), bool(row[8]))))
                     for row in cursor.fetchall()
                 ]
     except Exception:
