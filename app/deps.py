@@ -196,30 +196,85 @@ def _connect_db(driver, database: str) -> pymysql.connections.Connection | None:
         return None
 
 
+def _random_bot_account_prefix(instance_id: str) -> str:
+    """Prefijo de cuenta de los playerbots aleatorios (AiPlayerbot.RandomBotAccountPrefix).
+
+    Se lee de playerbots.conf porque es configurable por instancia; "rndbot" es el
+    valor por defecto del mod-playerbots si el modulo no esta instalado o la clave
+    no esta presente en el .conf.
+    """
+    conf_dir = get_instance_modules_conf_dir(instance_id)
+    if conf_dir:
+        conf_path = conf_dir / "playerbots.conf"
+        if conf_path.is_file():
+            try:
+                for line in conf_path.read_text(errors="ignore").splitlines():
+                    line = line.strip()
+                    if line.startswith("AiPlayerbot.RandomBotAccountPrefix"):
+                        _, _, value = line.partition("=")
+                        value = value.strip()
+                        if value:
+                            return value
+            except OSError:
+                pass
+    return "rndbot"
+
+
 def list_online_players(instance_id: str) -> list[dict]:
-    """Nombre/raza/clase/nivel/mapa/guid de los personajes conectados (db_characters).
+    """Nombre/raza/clase/nivel/mapa/guid/hermandad/bot de los personajes conectados.
 
     Sin ping/latencia: AzerothCore no lo guarda en base de datos, vive solo en
     memoria del worldserver (WorldSession::m_latency) mientras dura la sesion.
+
+    "is_bot" solo detecta playerbots aleatorios (cuenta con el prefijo configurado
+    en AiPlayerbot.RandomBotAccountPrefix); un bot "AddClass" asignado a una cuenta
+    normal no se distingue de un jugador real por este medio.
     """
     driver = get_manager().get_driver(instance_id)
     conn = _connect_db(driver, driver.config.db_characters if driver else "")
     if not conn:
         return []
+    db_auth = driver.config.db_auth if driver else ""
+    prefix = _random_bot_account_prefix(instance_id)
     try:
         with conn:
             with conn.cursor() as cursor:
-                cursor.execute(
-                    "SELECT guid, name, race, class, level, map FROM characters WHERE online = 1"
-                )
-                columns = ["guid", "name", "race", "class", "level", "map"]
-                return [dict(zip(columns, row)) for row in cursor.fetchall()]
+                if db_auth:
+                    cursor.execute(
+                        f"""
+                        SELECT c.guid, c.name, c.race, c.class, c.level, c.map,
+                               g.name, a.username LIKE %s
+                        FROM characters c
+                        LEFT JOIN guild_member gm ON gm.guid = c.guid
+                        LEFT JOIN guild g ON g.guildid = gm.guildid
+                        LEFT JOIN `{db_auth}`.account a ON a.id = c.account
+                        WHERE c.online = 1
+                        """,
+                        (f"{prefix}%",),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT c.guid, c.name, c.race, c.class, c.level, c.map,
+                               g.name, 0
+                        FROM characters c
+                        LEFT JOIN guild_member gm ON gm.guid = c.guid
+                        LEFT JOIN guild g ON g.guildid = gm.guildid
+                        WHERE c.online = 1
+                        """
+                    )
+                columns = ["guid", "name", "race", "class", "level", "map", "guild", "is_bot"]
+                return [
+                    dict(zip(columns, (*row[:7], bool(row[7]))))
+                    for row in cursor.fetchall()
+                ]
     except Exception:
         return []
 
 
 def search_items(instance_id: str, query: str, limit: int = 20) -> list[dict]:
-    """Objetos cuyo nombre contiene `query` (db_world.item_template), para autocompletado."""
+    """Objetos cuyo nombre (esES si esta traducido en item_template_locale, si no en ingles)
+    contiene `query` (db_world.item_template), para autocompletado."""
     driver = get_manager().get_driver(instance_id)
     conn = _connect_db(driver, driver.config.db_world if driver else "")
     if not conn or not query:
@@ -228,12 +283,45 @@ def search_items(instance_id: str, query: str, limit: int = 20) -> list[dict]:
         with conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    "SELECT entry, name FROM item_template WHERE name LIKE %s ORDER BY name LIMIT %s",
-                    (f"%{query}%", limit),
+                    """
+                    SELECT it.entry, COALESCE(loc.Name, it.name)
+                    FROM item_template it
+                    LEFT JOIN item_template_locale loc
+                        ON loc.ID = it.entry AND loc.locale = 'esES'
+                    WHERE it.name LIKE %s OR loc.Name LIKE %s
+                    ORDER BY COALESCE(loc.Name, it.name)
+                    LIMIT %s
+                    """,
+                    (f"%{query}%", f"%{query}%", limit),
                 )
                 return [{"entry": row[0], "name": row[1]} for row in cursor.fetchall()]
     except Exception:
         return []
+
+
+def get_item_by_entry(instance_id: str, entry: int) -> dict | None:
+    """Nombre (esES si existe, si no ingles) de un objeto por su entry exacto (db_world.item_template)."""
+    driver = get_manager().get_driver(instance_id)
+    conn = _connect_db(driver, driver.config.db_world if driver else "")
+    if not conn:
+        return None
+    try:
+        with conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT it.entry, COALESCE(loc.Name, it.name)
+                    FROM item_template it
+                    LEFT JOIN item_template_locale loc
+                        ON loc.ID = it.entry AND loc.locale = 'esES'
+                    WHERE it.entry = %s
+                    """,
+                    (entry,),
+                )
+                row = cursor.fetchone()
+                return {"entry": row[0], "name": row[1]} if row else None
+    except Exception:
+        return None
 
 
 def search_spells(instance_id: str, query: str, limit: int = 20) -> list[dict]:
