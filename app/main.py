@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -86,6 +86,14 @@ def login_page(request: Request, db: Session = Depends(get_db)):
     if _current_user_or_none(request, db):
         return RedirectResponse(url="/dashboard")
     return templates.TemplateResponse("login.html", {"request": request, "app_name": settings.app_name})
+
+
+@app.get("/api/navbar")
+def navbar_fragment(request: Request, db: Session = Depends(get_db)):
+    user = _current_user_or_none(request, db)
+    if not user:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="No autenticado")
+    return templates.TemplateResponse("_navbar.html", {"request": request, "user": user})
 
 
 @app.get("/dashboard")

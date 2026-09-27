@@ -6,6 +6,15 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.21.6] - 2026-09-27
+
+### Cambiado
+- La barra de navegacion del dashboard (tienda, actualizaciones, menu de plugins, reiniciar,
+  tema, cerrar sesion) ya no esta atada a esa pagina: se sirve como fragmento reutilizable desde
+  `GET /api/navbar` y cualquier plantilla puede montarla con un `<div id="navbar-mount">` y
+  `navbar-loader.js`. Los plugins con vista propia la usan ahora en vez de tener solo un enlace
+  de vuelta al Dashboard.
+
 ## [0.21.5] - 2026-09-25
 
 ### Corregido

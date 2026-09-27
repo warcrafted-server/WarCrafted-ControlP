@@ -1,0 +1,45 @@
+<div class="flex items-center gap-3">
+  <span class="text-sm text-gray-500 dark:text-gray-400">{{ user.username }}</span>
+  <a href="/plugins/store"
+     class="relative text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900 flex items-center gap-1.5">
+    <i class="fa-solid fa-store text-gray-400"></i>
+    Tienda
+    <span id="store-update-badge"
+          class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] leading-[18px] text-center"></span>
+  </a>
+  <a id="core-updates-btn" href="#"
+     class="relative text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900 flex items-center gap-1.5">
+    <i class="fa-solid fa-code-branch text-gray-400"></i>
+    <span id="core-updates-label">Comprobando...</span>
+    <span id="core-updates-badge"
+          class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] leading-[18px] text-center"></span>
+  </a>
+  <div class="relative">
+    <button id="plugins-menu-btn" type="button"
+            class="text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900 flex items-center gap-1.5">
+      Plugins
+      <i class="fa-solid fa-chevron-down text-[10px] text-gray-400"></i>
+    </button>
+    <div id="plugins-menu"
+         class="hidden absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg py-1 z-20">
+      <p class="px-3 py-2 text-sm text-gray-400">Cargando...</p>
+    </div>
+  </div>
+  <a href="/dashboard" title="Panel"
+     class="p-2 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900">
+    <i class="fa-solid fa-gauge text-gray-400"></i>
+  </a>
+  <button id="restart-panel-btn" type="button" title="Reiniciar el panel"
+          class="p-2 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900">
+    <i class="fa-solid fa-power-off text-gray-400"></i>
+  </button>
+  <button id="theme-toggle" type="button"
+          class="p-2 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900">
+    <span class="dark:hidden">🌙</span>
+    <span class="hidden dark:inline">☀️</span>
+  </button>
+  <button id="logout-btn" type="button"
+          class="text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900">
+    Cerrar sesion
+  </button>
+</div>
