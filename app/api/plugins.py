@@ -15,6 +15,7 @@ def _plugin_summary(slug: str, metadata) -> dict:
         "slug": slug,
         "name": metadata.name,
         "version": metadata.version,
+        "description": metadata.description,
         "has_ui": metadata.has_ui,
         "title": metadata.ui_title or metadata.name,
         "route": metadata.ui_route,

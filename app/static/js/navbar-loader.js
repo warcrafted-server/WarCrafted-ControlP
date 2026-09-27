@@ -13,21 +13,27 @@ function pluginMenuItem(plugin) {
     </a>`;
 }
 
+const PLUGINS_MENU_LINK = `
+  <a href="/plugins/menu" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-600 dark:text-brand-400 hover:bg-gray-100 dark:hover:bg-gray-800 border-b border-gray-200 dark:border-gray-800">
+    <i class="fa-solid fa-grip w-4 text-center"></i>
+    Ver todos los plugins
+  </a>`;
+
 async function loadPluginsMenu() {
   const pluginsMenu = document.getElementById('plugins-menu');
   try {
     const response = await fetch('/api/v1/plugins/');
     if (!response.ok) {
-      pluginsMenu.innerHTML = '<p class="px-3 py-2 text-sm text-gray-400">No se pudo cargar los plugins</p>';
+      pluginsMenu.innerHTML = PLUGINS_MENU_LINK + '<p class="px-3 py-2 text-sm text-gray-400">No se pudo cargar los plugins</p>';
       return;
     }
     const pluginsList = await response.json();
     const withUi = pluginsList.filter((plugin) => plugin.has_ui && plugin.route);
-    pluginsMenu.innerHTML = withUi.length
+    pluginsMenu.innerHTML = PLUGINS_MENU_LINK + (withUi.length
       ? withUi.map(pluginMenuItem).join('')
-      : '<p class="px-3 py-2 text-sm text-gray-400">Sin plugins con interfaz</p>';
+      : '<p class="px-3 py-2 text-sm text-gray-400">Sin plugins con interfaz</p>');
   } catch (err) {
-    pluginsMenu.innerHTML = '<p class="px-3 py-2 text-sm text-gray-400">No se pudo cargar los plugins</p>';
+    pluginsMenu.innerHTML = PLUGINS_MENU_LINK + '<p class="px-3 py-2 text-sm text-gray-400">No se pudo cargar los plugins</p>';
   }
 }
 

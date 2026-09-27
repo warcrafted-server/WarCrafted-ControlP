@@ -116,6 +116,16 @@ def plugin_store_page(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@app.get("/plugins/menu")
+def plugins_menu_page(request: Request, db: Session = Depends(get_db)):
+    user = _current_user_or_none(request, db)
+    if not user:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "plugins_menu.html", {"request": request, "app_name": settings.app_name, "user": user}
+    )
+
+
 @app.get("/console/{instance_id}")
 def console_page(request: Request, instance_id: str, db: Session = Depends(get_db)):
     user = _current_user_or_none(request, db)

@@ -6,6 +6,15 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.21.9] - 2026-09-27
+
+### Añadido
+- Nueva pantalla `/plugins/menu`: tarjetas grandes con icono, nombre y descripción de cada
+  plugin instalado con interfaz propia, como acceso directo. El menú desplegable "Plugins"
+  de la barra de navegación enlaza a ella arriba del todo.
+- `GET /api/v1/plugins/` incluye ahora el campo `description` de cada plugin (ya se leía del
+  manifest, solo faltaba exponerlo).
+
 ## [0.21.8] - 2026-09-27
 
 ### Cambiado
