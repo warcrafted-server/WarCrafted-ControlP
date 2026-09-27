@@ -247,6 +247,25 @@ async function updatePanel() {
   }
 }
 
+async function waitForPanelBackUp() {
+  // Nada más reiniciar el proceso, el propio puerto tarda un instante en volver
+  // a aceptar conexiones: un primer intento inmediato fallaría siempre.
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    try {
+      const response = await fetch('/api/system/update-check', { cache: 'no-store' });
+      if (response.ok || response.status === 401) {
+        window.location.reload();
+        return;
+      }
+    } catch (err) {
+      // panel todavia caido; se reintenta
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  panelUpdateLog.textContent += '\n\nEl panel no ha respondido tras el reinicio. Recarga la pagina manualmente.';
+}
+
 async function restartPanel() {
   if (!window.confirm(
     'El panel se reiniciara ahora mismo. Si no corre bajo un supervisor que lo levante '
@@ -264,7 +283,8 @@ async function restartPanel() {
   } catch (err) {
     // se espera que la conexion se corte cuando el proceso se reinicia
   }
-  panelUpdateLog.textContent += '\n\nReiniciando... recarga esta pagina en unos segundos.';
+  panelUpdateLog.textContent += '\n\nReiniciando... la pagina se recargara sola en cuanto el panel responda.';
+  waitForPanelBackUp();
 }
 
 const ACTION_LABELS = {

@@ -6,6 +6,13 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.21.7] - 2026-09-27
+
+### Corregido
+- Tras reiniciar el panel desde la Tienda de Plugins, el boton se quedaba en "Reiniciando..."
+  para siempre: nada comprobaba si el proceso ya habia vuelto a arrancar. Ahora la pagina
+  sondea el panel cada 2 segundos y se recarga sola en cuanto responde.
+
 ## [0.21.6] - 2026-09-27
 
 ### Cambiado
