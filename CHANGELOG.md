@@ -6,6 +6,13 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.21.10] - 2026-09-27
+
+### Cambiado
+- Dashboard, Tienda, menú de plugins y consola usan un ancho máximo mayor (`max-w-7xl`, el mismo
+  que el Centro de Mando GM), y la barra de navegación ya no parte los botones en dos líneas en
+  las páginas estrechas.
+
 ## [0.21.9] - 2026-09-27
 
 ### Añadido

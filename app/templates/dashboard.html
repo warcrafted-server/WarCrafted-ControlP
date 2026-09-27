@@ -6,13 +6,13 @@
 {% block body %}
 <div class="min-h-full flex flex-col">
   <header class="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-      <h1 class="text-lg font-semibold">{{ app_name }}</h1>
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+      <h1 class="text-lg font-semibold whitespace-nowrap">{{ app_name }}</h1>
       <div id="navbar-mount"></div>
     </div>
   </header>
 
-  <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 space-y-6">
     <div id="action-feedback" class="hidden text-sm rounded-lg px-4 py-3 whitespace-pre-wrap"></div>
 
     <section id="system-stats" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></section>
