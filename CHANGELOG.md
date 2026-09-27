@@ -6,6 +6,13 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.21.8] - 2026-09-27
+
+### Cambiado
+- El botón "Panel" de la barra de navegación (para volver al Dashboard desde la vista de un
+  plugin) apenas se distinguía: ahora usa una flecha y el texto "Panel", igual que el enlace
+  que tenían antes las vistas propias de cada plugin.
+
 ## [0.21.7] - 2026-09-27
 
 ### Corregido
