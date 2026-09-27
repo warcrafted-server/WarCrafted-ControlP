@@ -113,9 +113,15 @@ async function checkCoreUpdates() {
       label.textContent = 'Actualizaciones disponibles';
       badge.textContent = count;
       badge.classList.remove('hidden');
+      // El numero suma todas las configuraciones de build (produccion y pruebas).
+      const byProfile = (data.by_profile || []).map((p) => `${p.label}: ${p.count}`);
+      btn.title = byProfile.length
+        ? `Repositorios con actualizaciones:\n${byProfile.join('\n')}`
+        : `${count} repositorio(s) con actualizaciones`;
     } else {
       label.textContent = 'Núcleo actualizado';
       badge.classList.add('hidden');
+      btn.title = '';
     }
   } catch (err) {
     // el plugin esta instalado pero el resumen fallo momentaneamente: se deja el

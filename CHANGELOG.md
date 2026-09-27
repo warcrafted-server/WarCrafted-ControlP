@@ -6,6 +6,14 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.21.11] - 2026-09-27
+
+### Cambiado
+- El botón de actualizaciones del núcleo en la barra muestra, al pasar el ratón, cuántos
+  repositorios con actualizaciones tiene cada configuración de build (el número suma producción
+  y pruebas). Usa el campo `by_profile` de core_updater 0.10.4; con versiones anteriores solo
+  muestra el total.
+
 ## [0.21.10] - 2026-09-27
 
 ### Cambiado
