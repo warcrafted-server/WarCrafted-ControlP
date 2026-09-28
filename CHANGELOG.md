@@ -6,6 +6,13 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.22.0] - 2026-09-28
+
+### Añadido
+- Botón "Forks" en la barra de navegación, junto al de actualizaciones del núcleo: muestra
+  cuántos forks de GitHub vigilados están desactualizados respecto al original (plugin
+  `fork_watch`). Oculto si el plugin no está instalado.
+
 ## [0.21.11] - 2026-09-27
 
 ### Cambiado

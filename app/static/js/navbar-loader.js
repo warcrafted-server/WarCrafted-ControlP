@@ -129,6 +129,46 @@ async function checkCoreUpdates() {
   }
 }
 
+async function checkForkUpdates() {
+  const btn = document.getElementById('fork-updates-btn');
+  const label = document.getElementById('fork-updates-label');
+  const badge = document.getElementById('fork-updates-badge');
+
+  let installed = false;
+  try {
+    const pluginsResponse = await fetch('/api/v1/plugins/');
+    const plugins = pluginsResponse.ok ? await pluginsResponse.json() : [];
+    installed = plugins.some((plugin) => plugin.slug === 'fork_watch');
+  } catch (err) {
+    return; // sin respuesta de /api/v1/plugins/: se deja el boton como estaba, se reintenta en el siguiente ciclo
+  }
+  if (!installed) {
+    btn.classList.add('hidden');
+    return;
+  }
+  btn.classList.remove('hidden');
+  btn.setAttribute('href', '/api/v1/plugins/fork_watch/view');
+  try {
+    const response = await fetch('/api/v1/plugins/fork_watch/summary');
+    if (!response.ok) throw new Error('sin respuesta');
+    const data = await response.json();
+    const count = data.total_behind || 0;
+    if (count > 0) {
+      label.textContent = 'Forks desactualizados';
+      badge.textContent = count;
+      badge.classList.remove('hidden');
+      btn.title = data.forks.map((f) => `${f.fork}: ${f.behind_by} commit(s)`).join('\n');
+    } else {
+      label.textContent = 'Forks al día';
+      badge.classList.add('hidden');
+      btn.title = '';
+    }
+  } catch (err) {
+    // el plugin esta instalado pero el resumen fallo momentaneamente: se deja el
+    // boton como estaba, se reintenta en el siguiente ciclo
+  }
+}
+
 function bindNavbarActions() {
   document.getElementById('logout-btn').addEventListener('click', async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -171,7 +211,9 @@ async function loadNavbar(mountSelector) {
   loadPluginsMenu();
   checkUpdates();
   checkCoreUpdates();
+  checkForkUpdates();
   setInterval(checkCoreUpdates, 60000);
+  setInterval(checkForkUpdates, 60000);
 }
 
 document.addEventListener('DOMContentLoaded', () => loadNavbar('#navbar-mount'));
