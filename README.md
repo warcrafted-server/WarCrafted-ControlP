@@ -69,4 +69,16 @@ Consulta [`INSTALL.md`](INSTALL.md) para el detalle completo de instalacion y co
 
 ## Licencia
 
-Uso interno / privado. Ajusta esta seccion segun las necesidades del proyecto.
+**WNCL-P-1.0** — Licencia Privada No Comercial WarCrafted
+
+Copyright © 2025-2026 WarCrafted
+
+Este proyecto es software privado de uso exclusivo. **Solo WarCrafted tiene derecho de uso. Está prohibido:**
+- Usar sin autorización escrita explícita de WarCrafted
+- Modificar o crear versiones derivadas
+- Redistribuir, publicar o compartir con terceros
+- Vender, revender o explotar comercialmente el software
+
+Si alguien desea usar este software, debe contactar a WarCrafted para solicitar una licencia específica, que puede estar sujeta a términos y compensación.
+
+Consulta el archivo [`LICENSE`](LICENSE) para el texto legal completo.

@@ -1,0 +1,21 @@
+WNCL-P-1.0 — WarCrafted Non-Commercial Private License
+
+Copyright (c) 2025-2026 WarCrafted
+Author: Marc Sanchogín <msanchogin@gmail.com>
+Project: WarCrafted-ControlP
+Repository: https://github.com/warcrafted-server/WarCrafted-ControlP
+
+1. Ownership. Copyright and all rights not expressly granted remain with WarCrafted. This license does not transfer copyright.
+2. Limited permission. No person may use, copy, modify, or access this project unless WarCrafted has specifically authorized that person in a written agreement or other verifiable written permission. WarCrafted may set scope, duration, and conditions for each authorization.
+3. Compensation. WarCrafted may require compensation agreed in advance as a condition of a specific authorization. This text does not itself set an amount or promise authorization.
+4. Restrictions. Without WarCrafted's prior specific written permission, you may not:
+   - Redistribute, publish, or sublicense the project or any part of it
+   - Modify or create derivative works
+   - Sell, resell, or commercially exploit the project
+   - Share or grant access to unauthorized third parties
+5. Attribution and notices. Any authorized copy or use must preserve all author credits, copyright notices, and this license notice. You may not remove, obscure, or falsify authorship notices.
+6. Third-party material. This license covers only material owned by WarCrafted. Third-party components (dependencies, libraries, frameworks) are excluded and remain subject to their own terms and notices. See requirements.txt and package.json for third-party software.
+7. Termination. Permission terminates automatically upon material breach. On termination, stop the affected use and delete copies where legally required. Rights and remedies are subject to applicable law.
+8. Disclaimer. To the maximum extent permitted by applicable law, the project is provided "AS IS", without warranties, express or implied, including merchantability, fitness for a particular purpose, and non-infringement. WarCrafted is not liable for claims or damages arising from use, to the maximum extent permitted by law.
+
+This is a custom license, not an OSI-approved Open Source license or standard SPDX license.
