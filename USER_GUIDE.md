@@ -135,6 +135,18 @@ Antes de aplicar cualquier actualizacion (de un plugin o del panel), un modal mu
 
 Solo un administrador puede configurar el token, instalar/actualizar modulos, o actualizar/reiniciar el panel.
 
+## Compilar y actualizar el core (plugin "Actualizacion del Core")
+
+En **Compilacion** cada configuracion elige su *Backend de compilacion*:
+
+- **Nativo**: cmake/make en el propio equipo, con las opciones que ves en el formulario.
+- **Docker**: usa `WarCrafted-Deploy`. Indica la carpeta de ese repo, la de los clones (`~/Repos`), el reino (`pruebas`/`produccion`), el servicio compose y la instancia del panel (para avisar a los jugadores por SOAP). Botones:
+  - **Fijar commits (.lock)**: escribe en `builds/<reino>.lock` el commit de cada repositorio vinculado (usa la rama configurada del repositorio, no el HEAD del clon) y lo commitea. En producción copia los commits de `pruebas.lock`: producción solo compila lo que ya paso por pruebas.
+  - **Solo compilar / Configurar y compilar**: ejecuta `construir.sh` y deja la imagen nueva; guarda la anterior como `...-anterior`. No toca el reino en marcha.
+  - **Desplegar (recrear reino)**: en pruebas avisa 60 s y recrea el contenedor; en producción ejecuta `promocionar.sh` (volcado de bases, aviso por SOAP, y vuelta atras automatica a `:prod-anterior` si no arranca). Pide confirmacion.
+
+Flujo habitual: *Actualizar* (pull) los repos en la lista de repositorios → *Fijar commits* en pruebas → *Compilar* → *Desplegar* → probar en juego → *Fijar commits* en producción → *Compilar* → *Desplegar*.
+
 ## Consola GM
 
 La consola reproduce una terminal (basada en Xterm.js) conectada por WebSocket al panel. Cada linea que escribas y envies con **Enter** se ejecuta como comando GM contra el servicio SOAP de la instancia, y la respuesta del servidor se muestra a continuacion.

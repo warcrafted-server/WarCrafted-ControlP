@@ -95,6 +95,11 @@ Cada instancia se define con variables numeradas usando el prefijo `INSTANCE_<N>
 | `INSTANCE_<N>_DB_USER` / `DB_PASS` | Credenciales de solo lectura para la base de datos |
 | `INSTANCE_<N>_DB_CHARACTERS` | Nombre de la base de datos `characters` del emulador |
 | `INSTANCE_<N>_DB_AUTH` | Nombre de la base de datos de cuentas (por defecto `acore_auth`), para las cifras de la tarjeta del authserver |
+| `INSTANCE_<N>_RUNTIME` | `native` o `docker`; si falta, hereda `APP_RUNTIME` (por defecto `native`) |
+| `INSTANCE_<N>_DOCKER_SERVICE` | Modo Docker: servicio de docker compose (p. ej. `ac-pruebas`) |
+| `INSTANCE_<N>_DOCKER_PROJECT_DIR` | Modo Docker: carpeta con el `compose.yaml` (p. ej. el repo WarCrafted-Deploy) |
+| `INSTANCE_<N>_DOCKER_PROFILE` | Modo Docker: perfil de compose del servicio, si lo tiene (opcional) |
+| `INSTANCE_<N>_HOST_ROOT` | Raiz del arbol del servidor en el host (con `bin/`, `etc/`, `logs/`, `lua_scripts/`). Obligatoria en modo Docker, donde `WORKDIR` es una ruta del contenedor; en nativo se deduce de `WORKDIR` |
 | `INSTANCE_<N>_DB_WORLD` | Nombre de la base de datos de mundo (por defecto `acore_world`); solo la usan plugins de autocompletado (objetos, hechizos, ubicaciones) |
 
 Consulta `.env.example` para ver un ejemplo completo con dos instancias (una AzerothCore y una Playerbots).
@@ -123,6 +128,42 @@ run.bat           # Windows
 ```
 
 Ambos scripts activan el entorno virtual, cargan `.env` y arrancan Uvicorn en el host/puerto configurados.
+
+## Elegir como se ejecutan los emuladores: nativo o Docker
+
+El panel controla cada instancia de una de dos maneras, que se elige al instalar (`install.sh` / `install.bat` lo preguntan y escriben `APP_RUNTIME`) y se puede cambiar por instancia con `INSTANCE_<N>_RUNTIME`:
+
+- **Nativo** (por defecto): `worldserver`/`authserver` son procesos del propio equipo, localizados por nombre y `WORKDIR`. Iniciar, detener y compilar (cmake) actuan sobre ellos.
+- **Docker**: cada reino es un servicio de docker compose (se espera el despliegue de [WarCrafted-Deploy](https://github.com/warcrafted-server)). Estado, CPU/RAM, iniciar (`docker compose up -d`), detener (SOAP y, si falla, `docker compose stop`) y forzar (`docker kill`) usan solo la CLI de `docker`. Requisitos: `docker` y `docker compose` instalados y el usuario del panel en el grupo `docker`; el panel no instala nada.
+
+Ejemplo de dos reinos con un authserver compartido, en Docker (los contenedores usan `network_mode: host`, asi que SOAP y MySQL se ven en `127.0.0.1`):
+
+```
+APP_RUNTIME=docker
+
+AUTH_SERVICE_1_NAME=Authserver
+AUTH_SERVICE_1_ENABLED=true
+AUTH_SERVICE_1_RUNTIME=docker
+AUTH_SERVICE_1_DOCKER_SERVICE=ac-auth
+AUTH_SERVICE_1_DOCKER_PROJECT_DIR=/ruta/a/WarCrafted-Deploy
+# ... AUTH_SERVICE_1_DB_* como en .env.example
+
+INSTANCE_1_ENABLED=true
+INSTANCE_1_NAME=Produccion
+INSTANCE_1_TYPE=playerbots
+INSTANCE_1_AUTH_SERVICE_ID=auth-service-1
+INSTANCE_1_RUNTIME=docker
+INSTANCE_1_DOCKER_SERVICE=ac-produccion
+INSTANCE_1_DOCKER_PROJECT_DIR=/ruta/a/WarCrafted-Deploy
+INSTANCE_1_HOST_ROOT=/opt/vps-apps/azerothcore/produccion
+INSTANCE_1_SOAP_HOST=127.0.0.1
+INSTANCE_1_SOAP_PORT=7878
+# ... SOAP_USER/PASS, DB_*, ACORE_LOGS_DIR como en .env.example
+```
+
+> El `.env` lo carga `run.sh` con bash: los valores no pueden llevar parentesis ni espacios sin comillas (p. ej. `INSTANCE_1_NAME=Produccion`, no `Produccion (main)`).
+
+**Compilar y actualizar en Docker:** en el plugin *Actualizacion del Core* cada configuracion de build elige su backend. Con *Docker* se indican la carpeta de WarCrafted-Deploy, la de los clones (`~/Repos`) y el reino; *Compilar* ejecuta `scripts/construir.sh` (no toca el reino en marcha), *Fijar commits* escribe en `builds/<reino>.lock` el commit de cada clon (en produccion copia los de pruebas) y *Desplegar* recrea el reino (en produccion con `promocionar.sh`: volcado de bases, aviso por SOAP y vuelta atras a `:prod-anterior`). Ver `USER_GUIDE.md`.
 
 ## Instalacion de plugins
 
@@ -204,6 +245,16 @@ Con el token de GitHub configurado (ver "Instalacion de plugins" arriba; el mism
 3. Si todo fue bien, aparece un boton **Reiniciar panel**. Al pulsarlo el proceso se cierra a proposito; systemd (con `Restart=always`, como arriba) o el propio bucle de `./run.sh` (ver mas abajo) lo vuelven a levantar en segundos ya con el codigo nuevo. Sin ninguno de los dos (p. ej. `run.bat` en Windows, o el proceso lanzado de otra forma), el panel se queda caido hasta que lo arranques a mano.
 
 Sin servicio systemd, `./run.sh` ya relanza el panel solo si el proceso se cierra por su cuenta (como al pulsar **Reiniciar panel**): corre en un bucle dentro de la misma terminal, sin arrancar con el sistema ni quedar gestionado por systemd. Un `Ctrl+C` sigue cortando el bucle y cerrando el panel del todo — no reinicia. `run.bat` (Windows) no tiene este bucle; ahi reinicia tu mismo el proceso cuando te convenga.
+
+## Logs y espacio en disco
+
+- El panel purga cada hora el historico de `INSTANCES_LOGS_DIR` y las copias rotadas de la carpeta de logs nativa de cada instancia (`ACORE_LOGS_DIR`) con `LOGS_RETENTION_DAYS`, `LOGS_MAX_RUNS` y `LOGS_MAX_TOTAL_MB`.
+- Los ficheros activos de AzerothCore (`Server.log`, `Playerbots.log`...) no se truncan desde fuera: limita su tamano en `worldserver.conf` con el sexto campo del Appender (p. ej. `Appender.Server=2,5,0,Server.log,w,104857600`).
+- En Docker, rota tambien el log de cada contenedor (`logging: options: max-size/max-file` en el compose; WarCrafted-Deploy ya lo trae).
+
+## Despliegue con Apache y systemd
+
+La carpeta `deploy/` trae un vhost de Apache (proxy a `127.0.0.1:8000`, con `/ws/` por WebSocket) y una unidad systemd de ejemplo. Con `APP_HOST=127.0.0.1` el panel solo es accesible por el proxy; `run.sh` arranca uvicorn con `--proxy-headers` para que el limite de intentos de login use la IP real del cliente.
 
 ## Diagnostico de arranque
 

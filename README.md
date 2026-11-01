@@ -7,6 +7,7 @@ Permite monitorizar el estado de los procesos, consultar jugadores conectados, i
 ## Caracteristicas
 
 - **Multi-emulador**: gestiona varias instancias de AzerothCore y AzerothCore + Playerbots desde un unico panel.
+- **Nativo o Docker**: cada instancia se controla como procesos del host o como contenedores de docker compose, a elegir al instalar (`APP_RUNTIME`). Ver `INSTALL.md`.
 - **Arquitectura de drivers extensible**: cada tipo de emulador implementa una interfaz comun (`app/emulators/base.py`), lo que permite anadir nuevos tipos sin tocar el resto de la aplicacion.
 - **Consola GM en tiempo real** via WebSocket + Xterm.js, como panel flotante movible y redimensionable, con historial de comandos (↑/↓) y ejecucion via SOAP.
 - **Tarjetas de estado**: CPU, RAM y jugadores online por instancia, ademas de estadisticas del host. Cada instancia se identifica por su propio PID y `WORKDIR`, evitando cruces entre instancias que comparten el mismo binario.
@@ -43,6 +44,7 @@ WarCrafted-ControlP/
 │   ├── schemas.py            # Esquemas Pydantic
 │   └── security.py            # Hash de contrasenas y JWT
 ├── data/                # Base de datos SQLite, PIDs y logs por instancia (no versionada)
+├── deploy/               # Vhost de Apache y unidad systemd de ejemplo
 ├── install.sh / install.bat  # Autoinstalacion Linux / Windows
 ├── run.sh / run.bat          # Arranque del panel
 ├── requirements.txt

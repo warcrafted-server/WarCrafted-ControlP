@@ -6,6 +6,13 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.25.0] - 2026-11-01
+
+### Añadido
+- `install.sh` e `install.bat` preguntan si los emuladores son nativos o Docker y escriben `APP_RUNTIME`; en Docker comprueban `docker`, `docker compose` y permisos sin instalar nada.
+- Documentación: sección «Elegir cómo se ejecutan los emuladores», logs y despliegue con Apache/systemd en `INSTALL.md`; compilar y actualizar en Docker en `USER_GUIDE.md`; `README.md` y `TODO.md` al día.
+- El plugin `core_updater` 0.12.0 (repo `WarCraftedCP-plugins`) compila, fija commits y despliega con Docker.
+
 ## [0.24.2] - 2026-11-01
 
 ### Corregido

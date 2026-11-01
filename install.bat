@@ -28,6 +28,24 @@ if not exist ".env" (
     for /f "delims=" %%K in ('python -c "import secrets; print(secrets.token_hex(32))"') do set SECRET_KEY=%%K
     powershell -Command "(Get-Content .env) -replace '^SECRET_KEY=.*', 'SECRET_KEY=%SECRET_KEY%' | Set-Content .env"
     echo Se genero una SECRET_KEY aleatoria en .env.
+    echo.
+    echo === Como se ejecutan los emuladores ===
+    echo   1^) Nativo: procesos del propio equipo
+    echo   2^) Docker: contenedores de docker compose
+    set /p RUNTIME_CHOICE="Elige [1]: "
+    if "!RUNTIME_CHOICE!"=="2" (
+        where docker >nul 2>nul
+        if errorlevel 1 (
+            echo Docker no esta instalado; instalalo y cambia APP_RUNTIME en .env.
+        ) else (
+            docker info >nul 2>nul
+            if errorlevel 1 echo Docker no responde; arranca Docker Desktop antes de iniciar el panel.
+        )
+        powershell -Command "(Get-Content .env) -replace '^# APP_RUNTIME=.*', 'APP_RUNTIME=docker' | Set-Content .env"
+        echo APP_RUNTIME=docker. Define INSTANCE_N_DOCKER_SERVICE y INSTANCE_N_DOCKER_PROJECT_DIR por instancia.
+    ) else (
+        echo APP_RUNTIME=native ^(valor por defecto^).
+    )
 ) else (
     echo .env ya existe, no se sobrescribe.
 )

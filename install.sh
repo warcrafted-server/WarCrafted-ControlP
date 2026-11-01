@@ -37,6 +37,25 @@ if [ ! -f ".env" ]; then
     sed -i "s/^SECRET_KEY=.*/SECRET_KEY=${SECRET_KEY}/" .env
   fi
   echo "Se genero una SECRET_KEY aleatoria en .env."
+
+  echo
+  echo "=== Como se ejecutan los emuladores (AzerothCore) ==="
+  echo "  1) Nativo: procesos del propio equipo (worldserver/authserver instalados en el host)"
+  echo "  2) Docker: contenedores de docker compose (ver docs de WarCrafted-Deploy)"
+  read -rp "Elige [1]: " RUNTIME_CHOICE
+  if [ "${RUNTIME_CHOICE:-1}" = "2" ]; then
+    if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
+      echo "Docker o el plugin 'docker compose' no estan instalados; no se instala nada automaticamente."
+      echo "Instalalo y vuelve a elegir Docker editando APP_RUNTIME en .env."
+    elif ! docker info >/dev/null 2>&1; then
+      echo "Docker no responde para este usuario (¿falta el grupo 'docker' o el servicio?)."
+      echo "Soluciónalo (p. ej. 'sudo usermod -aG docker $USER' y reinicia la sesion) antes de arrancar el panel."
+    fi
+    sed -i 's/^# APP_RUNTIME=.*/APP_RUNTIME=docker/' .env
+    echo "APP_RUNTIME=docker. Por cada instancia define INSTANCE_<N>_DOCKER_SERVICE y INSTANCE_<N>_DOCKER_PROJECT_DIR (ver .env.example)."
+  else
+    echo "APP_RUNTIME=native (valor por defecto)."
+  fi
 else
   echo ".env ya existe, no se sobrescribe."
 fi
