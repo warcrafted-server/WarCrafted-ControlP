@@ -6,6 +6,11 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.24.2] - 2026-11-01
+
+### Corregido
+- La tarjeta «Panel principal» de la Tienda solo ofrece actualizar cuando la versión de GitHub es mayor que la instalada; antes cualquier versión distinta (incluida una anterior) se presentaba como actualización.
+
 ## [0.24.1] - 2026-11-01
 
 ### Añadido

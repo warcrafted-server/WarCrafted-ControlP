@@ -29,6 +29,22 @@ def current_version() -> str:
     return "0.0.0"
 
 
+def _version_tuple(version: str) -> tuple[int, ...] | None:
+    try:
+        return tuple(int(part) for part in version.split("-")[0].split("."))
+    except ValueError:
+        return None
+
+
+def _is_newer(remote: str, installed: str) -> bool:
+    """Solo ofrece actualizar si el remoto es mayor: con `!=` una copia local por delante
+    de GitHub (aun sin subir) se presentaba como actualizacion y bajaba de version."""
+    remote_t, installed_t = _version_tuple(remote), _version_tuple(installed)
+    if remote_t is None or installed_t is None:
+        return remote != installed
+    return remote_t > installed_t
+
+
 def _extract_changelog_section(changelog_text: str, version: str) -> str:
     """Extrae el bloque de un CHANGELOG.md (formato Keep a Changelog) para `version`."""
     match = re.search(rf"^## \[{re.escape(version)}\].*$", changelog_text, re.MULTILINE)
@@ -51,7 +67,7 @@ def check_update(token: str, repo: str) -> dict:
         )
     remote_version = remote_version.strip()
     installed = current_version()
-    update_available = installed != remote_version
+    update_available = _is_newer(remote_version, installed)
 
     changelog = ""
     if update_available:
