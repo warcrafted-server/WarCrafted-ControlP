@@ -6,6 +6,11 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.24.1] - 2026-11-01
+
+### Añadido
+- Purga periódica de logs cada hora (`app/emulators/log_maintenance.py`): aplica `LOGS_RETENTION_DAYS`, `LOGS_MAX_RUNS` y `LOGS_MAX_TOTAL_MB` al histórico y borra de la carpeta de logs nativa de AzerothCore las copias rotadas y antiguas. Antes solo se purgaba al iniciar una instancia desde el panel y los logs nativos no se limpiaban nunca.
+
 ## [0.24.0] - 2026-11-01
 
 ### Añadido

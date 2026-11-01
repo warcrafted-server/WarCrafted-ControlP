@@ -21,7 +21,7 @@ from app.config import BASE_DIR, get_settings
 from app.core_update import current_version
 from app.database import init_db
 from app.deps import get_db
-from app.emulators import shutdown_watchdog
+from app.emulators import log_maintenance, shutdown_watchdog
 from app.plugins.loader import load_plugins
 from app.security import decode_access_token
 
@@ -32,10 +32,12 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     init_db()
     watchdog = asyncio.create_task(shutdown_watchdog.watch())
+    log_purge = asyncio.create_task(log_maintenance.watch())
     try:
         yield
     finally:
         watchdog.cancel()
+        log_purge.cancel()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
