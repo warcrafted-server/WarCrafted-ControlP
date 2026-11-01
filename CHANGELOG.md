@@ -6,6 +6,12 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.24.0] - 2026-11-01
+
+### Añadido
+- Runtime Docker (`app/emulators/runtime_docker.py`): iniciar, detener (SOAP y, si falla, `docker compose stop`), forzar (`docker kill`) y estado con CPU/RAM de reinos y authserver en contenedores de docker compose. Se elige con `APP_RUNTIME` o `INSTANCE_<N>_RUNTIME` / `AUTH_SERVICE_<M>_RUNTIME` y `*_DOCKER_SERVICE`, `*_DOCKER_PROJECT_DIR`, `*_DOCKER_PROFILE`.
+- Si Docker no responde, la tarjeta muestra el error en lugar de fallar.
+
 ## [0.23.0] - 2026-11-01
 
 ### Añadido

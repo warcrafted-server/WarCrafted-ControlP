@@ -6,9 +6,9 @@ import psutil
 import pymysql
 
 from app.config import DATA_DIR
-from app.emulators import process_control
 from app.emulators.base import ProcessControlError
-from app.emulators.runtime import NativeRuntime, RuntimeMarkers
+from app.emulators.runtime import NativeRuntime, RuntimeBackend, RuntimeMarkers
+from app.emulators.runtime_docker import DockerRuntime
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,10 @@ class AuthServiceConfig:
     db_user: str
     db_pass: str
     db_name: str = "acore_auth"
+    runtime: str = "native"
+    docker_service: str = ""
+    docker_project_dir: str = ""
+    docker_profile: str = ""
 
 
 class AuthServiceDriver:
@@ -35,17 +39,28 @@ class AuthServiceDriver:
 
     Sin SOAP ni consola (el authserver de AzerothCore no expone ninguno de los dos): el
     estado es solo si el proceso existe, y la parada es siempre SIGTERM con escalada a
-    SIGKILL en la misma llamada.
+    SIGKILL en la misma llamada. En Docker la parada es `docker compose stop`.
     """
 
     def __init__(self, config: AuthServiceConfig):
         self.config = config
         PID_DIR.mkdir(parents=True, exist_ok=True)
-        self.runtime = NativeRuntime(
-            name=config.name,
-            process_name=config.process_name,
-            workdir=config.workdir,
-            start_cmd=config.start_cmd,
+        self.runtime = self._build_runtime()
+
+    def _build_runtime(self) -> RuntimeBackend:
+        if self.config.runtime == "docker":
+            return DockerRuntime(
+                name=self.config.name,
+                service=self.config.docker_service,
+                project_dir=self.config.docker_project_dir,
+                profile=self.config.docker_profile,
+                markers=RuntimeMarkers(stopping_file=self._stopping_file()),
+            )
+        return NativeRuntime(
+            name=self.config.name,
+            process_name=self.config.process_name,
+            workdir=self.config.workdir,
+            start_cmd=self.config.start_cmd,
             pid_file=self._pid_file(),
             markers=RuntimeMarkers(stopping_file=self._stopping_file()),
         )
@@ -73,7 +88,7 @@ class AuthServiceDriver:
         if existing:
             return {"success": True, "detail": "El authserver ya esta en ejecucion.", "pid": existing.pid}
 
-        if not self.config.start_cmd:
+        if not self.config.start_cmd and self.config.runtime != "docker":
             raise ProcessControlError(f"No hay START_CMD configurado para el authserver '{self.config.name}'.")
 
         started = self.runtime.start(subject="El authserver")
@@ -87,19 +102,14 @@ class AuthServiceDriver:
 
         self._stopping_file().touch()
         try:
-            forced = self.runtime.terminate_process(proc)
-            if forced:
-                detail = f"El authserver (PID {proc.pid}) no respondio a la señal de apagado; se forzo el cierre (SIGKILL)."
-            else:
-                detail = f"Authserver detenido (PID {proc.pid})."
-        except (psutil.NoSuchProcess, psutil.AccessDenied) as exc:
+            # Nativo: SIGTERM con escalada a SIGKILL. Docker: `docker compose stop`.
+            result = self.runtime.stop()
+        except ProcessControlError:
             self._stopping_file().unlink(missing_ok=True)
-            logger.error("Fallo al detener el authserver '%s': %s", self.config.name, exc)
-            raise ProcessControlError(f"No se pudo detener el authserver (PID {proc.pid}): {exc}") from exc
-        process_control.clear_pid(self._pid_file())
+            raise
         self._stopping_file().unlink(missing_ok=True)
-        logger.info("Authserver '%s' detenido (PID %s): %s", self.config.name, proc.pid, detail)
-        return {"success": True, "detail": detail}
+        logger.info("Authserver '%s' detenido (PID %s): %s", self.config.name, proc.pid, result.get("detail"))
+        return result
 
     def get_account_stats(self) -> dict:
         """Cuentas totales y conectadas (acore_auth.account); None si la BD no responde."""

@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Callable
 
 from dotenv import load_dotenv
 
@@ -9,6 +10,8 @@ from app.emulators.base import BaseEmulatorDriver, InstanceConfig
 from app.emulators.playerbots import PlayerbotsDriver
 
 logger = logging.getLogger(__name__)
+
+_warned_runtimes: set[str] = set()
 
 DRIVER_REGISTRY: dict[str, type[BaseEmulatorDriver]] = {
     "azerothcore": AzerothCoreDriver,
@@ -26,6 +29,18 @@ def _resolve_driver_class(type_name: str) -> type[BaseEmulatorDriver] | None:
     if "azerothcore" in normalized or normalized == "acore":
         return AzerothCoreDriver
     return None
+
+
+def _runtime_mode(env: Callable[[str], str]) -> str:
+    """Runtime de una instancia o authservice: su variable o el APP_RUNTIME global."""
+    mode = (env("RUNTIME") or os.environ.get("APP_RUNTIME", "native")).strip().lower()
+    if mode in ("native", "docker"):
+        return mode
+    # Un typo no debe cambiar el modo en silencio, pero reload() corre en cada peticion.
+    if mode not in _warned_runtimes:
+        _warned_runtimes.add(mode)
+        logger.warning("Runtime '%s' no reconocido (native|docker); se usa native.", mode)
+    return "native"
 
 
 def _load_instance_configs() -> list[InstanceConfig]:
@@ -77,6 +92,10 @@ def _load_instance_configs() -> list[InstanceConfig]:
                     db_world=env("DB_WORLD", "acore_world"),
                     db_playerbots=env("DB_PLAYERBOTS"),
                     host_root=env("HOST_ROOT"),
+                    runtime=_runtime_mode(env),
+                    docker_service=env("DOCKER_SERVICE"),
+                    docker_project_dir=env("DOCKER_PROJECT_DIR"),
+                    docker_profile=env("DOCKER_PROFILE"),
                 )
             )
         except ValueError as exc:
@@ -123,6 +142,10 @@ def _load_auth_service_configs() -> list[AuthServiceConfig]:
                     db_user=env("DB_USER"),
                     db_pass=env("DB_PASS"),
                     db_name=env("DB_NAME", "acore_auth"),
+                    runtime=_runtime_mode(env),
+                    docker_service=env("DOCKER_SERVICE"),
+                    docker_project_dir=env("DOCKER_PROJECT_DIR"),
+                    docker_profile=env("DOCKER_PROFILE"),
                 )
             )
         except ValueError as exc:
@@ -163,6 +186,9 @@ class EmulatorManager:
             drivers[config.id] = driver_cls(config)
 
             if config.auth_service_id not in auth_services:
+                # En Docker el authserver es otro servicio del compose, distinto del reino:
+                # hereda solo el modo y se avisa de que falta su DOCKER_SERVICE hasta que
+                # se declare con un bloque AUTH_SERVICE_<M>_.
                 auth_services[config.auth_service_id] = AuthServiceDriver(
                     AuthServiceConfig(
                         id=config.auth_service_id,
@@ -176,6 +202,9 @@ class EmulatorManager:
                         db_user=config.db_user,
                         db_pass=config.db_pass,
                         db_name=config.db_auth,
+                        runtime=config.runtime,
+                        docker_project_dir=config.docker_project_dir,
+                        docker_profile=config.docker_profile,
                     )
                 )
 

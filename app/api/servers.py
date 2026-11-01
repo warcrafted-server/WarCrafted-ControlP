@@ -46,6 +46,7 @@ def list_servers(
                 players_online=info["players_online"],
                 update_diff_ms=info["update_diff_ms"],
                 auth_service_id=driver.config.auth_service_id,
+                error=info.get("error"),
             )
         )
 

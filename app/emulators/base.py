@@ -10,7 +10,8 @@ import psutil
 
 from app.config import DATA_DIR, get_settings
 from app.emulators import log_manager
-from app.emulators.runtime import NativeRuntime, ProcessControlError, RuntimeMarkers
+from app.emulators.runtime import NativeRuntime, ProcessControlError, RuntimeBackend, RuntimeMarkers
+from app.emulators.runtime_docker import DockerRuntime
 from app.soap.client import SoapClient, SoapError
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,10 @@ class InstanceConfig:
     db_world: str = "acore_world"
     db_playerbots: str = ""  # vacio = instancia sin mod-playerbots, esa base no existe
     host_root: str = ""
+    runtime: str = "native"
+    docker_service: str = ""
+    docker_project_dir: str = ""
+    docker_profile: str = ""
 
     @property
     def host_base(self) -> Path | None:
@@ -108,11 +113,26 @@ class BaseEmulatorDriver(ABC):
         self._stop_generation = 0
         # El runtime se rehace en cada reload del manager, asi que puede leer los
         # marcadores por referencia y no hace falta mantenerlos sincronizados.
-        self.runtime = NativeRuntime(
-            name=config.name,
-            process_name=config.world_process,
-            workdir=config.workdir,
-            start_cmd=config.start_cmd,
+        self.runtime = self._build_runtime()
+
+    def _build_runtime(self) -> RuntimeBackend:
+        if self.config.runtime == "docker":
+            return DockerRuntime(
+                name=self.config.name,
+                service=self.config.docker_service,
+                project_dir=self.config.docker_project_dir,
+                profile=self.config.docker_profile,
+                markers=RuntimeMarkers(
+                    ready_file=self._ready_file(),
+                    stopping_file=self._stopping_file(),
+                    is_ready=self._is_ready,
+                ),
+            )
+        return NativeRuntime(
+            name=self.config.name,
+            process_name=self.config.world_process,
+            workdir=self.config.workdir,
+            start_cmd=self.config.start_cmd,
             pid_file=self._pid_file(),
             markers=RuntimeMarkers(
                 ready_file=self._ready_file(),
@@ -223,7 +243,7 @@ class BaseEmulatorDriver(ABC):
         if existing:
             return {"success": True, "detail": "El servidor ya esta en ejecucion.", "pid": existing.pid}
 
-        if not self.config.start_cmd:
+        if not self.config.start_cmd and self.config.runtime != "docker":
             raise ProcessControlError("No hay START_CMD configurado para esta instancia.")
 
         instance_dir = self._log_instance_dir()
