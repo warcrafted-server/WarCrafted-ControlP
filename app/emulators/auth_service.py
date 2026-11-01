@@ -1,7 +1,4 @@
 import logging
-import shlex
-import subprocess
-import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -11,6 +8,7 @@ import pymysql
 from app.config import DATA_DIR
 from app.emulators import process_control
 from app.emulators.base import ProcessControlError
+from app.emulators.runtime import NativeRuntime, RuntimeMarkers
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +41,14 @@ class AuthServiceDriver:
     def __init__(self, config: AuthServiceConfig):
         self.config = config
         PID_DIR.mkdir(parents=True, exist_ok=True)
+        self.runtime = NativeRuntime(
+            name=config.name,
+            process_name=config.process_name,
+            workdir=config.workdir,
+            start_cmd=config.start_cmd,
+            pid_file=self._pid_file(),
+            markers=RuntimeMarkers(stopping_file=self._stopping_file()),
+        )
 
     def _pid_file(self) -> Path:
         return PID_DIR / f"authsvc-{self.config.id}.pid"
@@ -51,7 +57,7 @@ class AuthServiceDriver:
         return PID_DIR / f"authsvc-{self.config.id}.stopping"
 
     def find_process(self) -> psutil.Process | None:
-        return process_control.find_process(self._pid_file(), self.config.process_name, self.config.workdir)
+        return self.runtime.find_process()
 
     def get_status(self) -> dict:
         proc = self.find_process()
@@ -70,40 +76,8 @@ class AuthServiceDriver:
         if not self.config.start_cmd:
             raise ProcessControlError(f"No hay START_CMD configurado para el authserver '{self.config.name}'.")
 
-        workdir = Path(self.config.workdir) if self.config.workdir else None
-        if workdir and not workdir.is_dir():
-            raise ProcessControlError(f"El directorio de trabajo (WORKDIR) no existe: {workdir}")
-
-        try:
-            args = shlex.split(self.config.start_cmd)
-        except ValueError as exc:
-            raise ProcessControlError(f"START_CMD invalido: {exc}") from exc
-
-        self._stopping_file().unlink(missing_ok=True)
-
-        try:
-            process = subprocess.Popen(
-                args,
-                cwd=str(workdir) if workdir else None,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-        except OSError as exc:
-            logger.error("Fallo al iniciar el authserver '%s': %s", self.config.name, exc)
-            raise ProcessControlError(f"No se pudo ejecutar '{self.config.start_cmd}': {exc}") from exc
-
-        time.sleep(0.5)
-        return_code = process.poll()
-        if return_code is not None:
-            message = f"El authserver finalizo inmediatamente (codigo {return_code})."
-            logger.error("Fallo al iniciar el authserver '%s': %s", self.config.name, message)
-            raise ProcessControlError(message)
-
-        process_control.write_pid(self._pid_file(), process.pid)
-        logger.info("Authserver '%s' iniciado con PID %s", self.config.name, process.pid)
-        return {"success": True, "detail": "Authserver iniciado correctamente.", "pid": process.pid}
+        started = self.runtime.start(subject="El authserver")
+        return {"success": True, "detail": "Authserver iniciado correctamente.", "pid": started["pid"]}
 
     def stop(self) -> dict:
         proc = self.find_process()
@@ -113,10 +87,8 @@ class AuthServiceDriver:
 
         self._stopping_file().touch()
         try:
-            proc.terminate()
-            _, alive = psutil.wait_procs([proc], timeout=5)
-            if alive:
-                proc.kill()
+            forced = self.runtime.terminate_process(proc)
+            if forced:
                 detail = f"El authserver (PID {proc.pid}) no respondio a la señal de apagado; se forzo el cierre (SIGKILL)."
             else:
                 detail = f"Authserver detenido (PID {proc.pid})."

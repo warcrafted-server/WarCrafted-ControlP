@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     app_env: str = "production"
     app_host: str = "0.0.0.0"
     app_port: int = 8000
+    app_runtime: str = "native"
 
     secret_key: str = "CHANGE_ME"
     jwt_algorithm: str = "HS256"

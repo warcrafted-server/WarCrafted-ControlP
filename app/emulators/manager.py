@@ -76,6 +76,7 @@ def _load_instance_configs() -> list[InstanceConfig]:
                     db_auth=env("DB_AUTH", "acore_auth"),
                     db_world=env("DB_WORLD", "acore_world"),
                     db_playerbots=env("DB_PLAYERBOTS"),
+                    host_root=env("HOST_ROOT"),
                 )
             )
         except ValueError as exc:

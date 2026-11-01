@@ -6,6 +6,12 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.23.0] - 2026-11-01
+
+### Añadido
+- Interfaz `RuntimeBackend` (`app/emulators/runtime.py`) con `NativeRuntime`, que reúne el control de procesos de siempre; base para el modo Docker.
+- `INSTANCE_<N>_HOST_ROOT` y propiedades `bin_dir`, `etc_dir`, `logs_dir`, `lua_dir` en cada instancia: los plugins resuelven `etc/`, módulos y Lua desde ahí y no desde `WORKDIR/..`. `APP_RUNTIME` (por defecto `native`).
+
 ## [0.22.1] - 2026-11-01
 
 ### Corregido

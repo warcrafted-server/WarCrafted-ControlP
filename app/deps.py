@@ -123,14 +123,14 @@ def get_servers_snapshot() -> list[dict]:
 def get_instance_modules_conf_dir(instance_id: str) -> Path | None:
     """Directorio etc/modules/ de una instancia habilitada, o None si no existe.
 
-    Deriva la ruta del WORKDIR (etc/ es hermano de bin/), para que un plugin
-    pueda listar/editar los .conf de los modulos sin conocer el layout de
+    Sale de InstanceConfig.etc_dir (host_root o el padre de WORKDIR), para que un
+    plugin pueda listar/editar los .conf de los modulos sin conocer el layout de
     AzerothCore ni importar EmulatorManager directamente.
     """
     driver = get_manager().get_driver(instance_id)
-    if not driver or not driver.config.enabled or not driver.config.workdir:
+    if not driver or not driver.config.enabled or driver.config.etc_dir is None:
         return None
-    conf_dir = Path(driver.config.workdir).parent / "etc" / "modules"
+    conf_dir = driver.config.etc_dir / "modules"
     return conf_dir if conf_dir.is_dir() else None
 
 
@@ -141,9 +141,9 @@ def get_instance_etc_dir(instance_id: str) -> Path | None:
     get_instance_modules_conf_dir() porque un plugin puede querer solo uno de los dos.
     """
     driver = get_manager().get_driver(instance_id)
-    if not driver or not driver.config.enabled or not driver.config.workdir:
+    if not driver or not driver.config.enabled or driver.config.etc_dir is None:
         return None
-    etc_dir = Path(driver.config.workdir).parent / "etc"
+    etc_dir = driver.config.etc_dir
     return etc_dir if etc_dir.is_dir() else None
 
 
@@ -735,9 +735,9 @@ def get_instance_lua_scripts_dir(instance_id: str) -> Path | None:
     mod-eluna en esa instancia y la carpeta aun no exista.
     """
     driver = get_manager().get_driver(instance_id)
-    if not driver or not driver.config.enabled or not driver.config.workdir:
+    if not driver or not driver.config.enabled or driver.config.lua_dir is None:
         return None
-    scripts_dir = Path(driver.config.workdir).parent / "lua_scripts"
+    scripts_dir = driver.config.lua_dir
     scripts_dir.mkdir(parents=True, exist_ok=True)
     return scripts_dir
 
