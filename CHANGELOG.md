@@ -6,6 +6,14 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.22.1] - 2026-11-01
+
+### Corregido
+- `run.sh` arranca uvicorn con `--proxy-headers`, de modo que tras un proxy inverso el límite de intentos de login usa la IP real del cliente y no `127.0.0.1` compartida.
+
+### Añadido
+- `deploy/`: vhost de Apache y unidad systemd de ejemplo para servir el panel detrás de HTTPS.
+
 ## [0.22.0] - 2026-09-28
 
 ### Añadido

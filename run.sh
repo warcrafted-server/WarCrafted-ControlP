@@ -17,7 +17,7 @@ stop=0
 trap 'stop=1; kill "$child" 2>/dev/null' INT TERM
 
 while [ "$stop" -eq 0 ]; do
-  uvicorn app.main:app --host "${APP_HOST:-0.0.0.0}" --port "${APP_PORT:-8000}" &
+  uvicorn app.main:app --host "${APP_HOST:-0.0.0.0}" --port "${APP_PORT:-8000}" --proxy-headers --forwarded-allow-ips 127.0.0.1 &
   child=$!
   wait "$child"
   if [ "$stop" -eq 0 ]; then
