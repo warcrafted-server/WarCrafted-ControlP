@@ -41,3 +41,6 @@ Los dos reinos (pruebas y producción) deben quedar operativos en ambos modos; p
 
 ## Fuera de alcance
 Otros runtimes (Podman, systemd units, Kubernetes) y mover los reinos entre modos. Push, tags y licencia: solo con aprobación del usuario.
+
+## Estado (2026-11-01)
+Pasos 1, 2, 3, 4 y 5 hechos (v0.23.0 a v0.25.0; core_updater 0.12.0). Paso 6 parcial: panel en HTTPS y dos reinos configurados; falta arrancar ac-produccion y recrear contenedores (logs).
